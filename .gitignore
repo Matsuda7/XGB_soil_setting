@@ -19,6 +19,13 @@ env/
 Thumbs.db
 
 # Local research data and generated outputs
+data/**
+!data/**/
+!data/**/.gitkeep
+results/**
+!results/**/
+!results/**/.gitkeep
+/input_xml
 input_xml/*
 !input_xml/.gitkeep
 metadata/*

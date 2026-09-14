@@ -1,0 +1,21 @@
+{
+  "numeric_features": [
+    "x",
+    "y",
+    "surface_z",
+    "jshis_avs30",
+    "slope",
+    "curvature",
+    // "dem_missing",
+    "n_value_elevation",
+    "jshis_arv"
+    // データ列にはなく、学習時にRBF生成する場合だけ次の行を有効化する
+    // , "assumed_bedrock_elevation_rbf"
+  ],
+  "categorical_features": [
+    "symbol",
+    "jshis_jcode"
+    //, "ser"
+
+  ]
+}
