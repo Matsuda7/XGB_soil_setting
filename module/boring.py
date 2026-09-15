@@ -26,7 +26,7 @@ DEM_XMIN = -45800.0
 DEM_YMIN = 105400.0
 DEM_SPACING = 10.0
 DEM_NODATA = -200.0
-CONFIG_PATH = project_path("config/prediction_phi.json")
+CONFIG_PATH = project_path("config/phi/prediction.json")
 
 REQUIRED_COLUMNS = ["ファイル名", "坑口座標X", "坑口座標Y", "坑口座標Z"]
 LOGGER = logging.getLogger(__name__)

@@ -1,0 +1,5 @@
+{
+  "xml_dir": "data/raw/soiltest/strength",
+  "prediction_config": "config/spatial.json",
+  "output_dir": "results/test_locations"
+}

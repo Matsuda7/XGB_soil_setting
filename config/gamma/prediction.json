@@ -1,0 +1,40 @@
+{
+  "spatial_config": "config/spatial.json",
+  "model_config": "config/gamma/model.jsonc",
+  "prediction_depth_m": 1.0,
+  "density_unit": "g/cm3",
+  "gravity_m_s2": 9.80665,
+  "exclude_outside_dem": true,
+  "input_chunk_size": 100000,
+  "display_spacing_m": 100.0,
+  "write_text_matrix": false,
+  "output_dir": "results/gamma",
+  "xgb_parameters": {
+    "objective": "reg:squarederror",
+    "n_estimators": 1500,
+    "learning_rate": 0.03,
+    "max_depth": 7,
+    "min_child_weight": 3,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "reg_alpha": 0.05,
+    "reg_lambda": 1.0,
+    "random_state": 42,
+    "n_jobs": 4,
+    "tree_method": "hist",
+    "eval_metric": "rmse",
+    "importance_type": "gain",
+    "early_stopping_rounds": 75
+  },
+  "validation": {
+    "mode": "borehole",
+    "additional_spatial": true,
+    "block_size_m": 10000.0,
+    "test_size": 0.2,
+    "validation_size": 0.2,
+    "random_state": 42
+  },
+  "n_comparison_config": "config/gamma/n_comparison.json",
+  "create_distribution": true,
+  "distribution_model": "predicted_n"
+}

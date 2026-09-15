@@ -76,7 +76,7 @@ def run(stage='all', targets=None, config_path=CONFIG / 'pipeline.json', downloa
             from module.distributions import distribute
             for target in targets:
                 missing = missing_inputs(target, current)
-                if target != 'phi':
+                if target == 'c':
                     entries[target] = distribute(target)
                 elif missing:
                     entries[target] = {'status': 'missing_input', 'missing': missing}
@@ -124,7 +124,7 @@ def main(argv=None):
     if args.plan:
         print(json.dumps({'stages': STAGES if args.stage == 'all' else [args.stage],
                           'targets': {t: {'missing': missing_inputs(t, 'distribute'),
-                                          'distribution_implemented': t == 'phi'} for t in targets}},
+                                          'distribution_implemented': t in ('phi', 'gamma')} for t in targets}},
                          ensure_ascii=False, indent=2))
         return 0
     return run(args.stage, targets, args.config, args.download)

@@ -1,0 +1,15 @@
+{
+  "grid_input": "data/raw/grid/output4.txt",
+  "dem_input": "data/raw/dem/z.txt",
+  "dem_cache": "data/cache/dem/z.npy",
+  "grid_crs": "EPSG:6675",
+  "grid_spacing_m": 10.0,
+  "property_mask": "data/raw/grid/prop.txt",
+  "property_mask_spacing_m": 10.0,
+  "property_mask_bounds": {
+    "xmin": -45800.0,
+    "xmax": 19000.0,
+    "ymin": 105400.0,
+    "ymax": 171200.0
+  }
+}

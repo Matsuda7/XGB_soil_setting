@@ -9,6 +9,8 @@ import os
 import re
 from pathlib import Path
 from module.paths import project_path
+from module.xgb_common import load_model_config
+from module.validation import load_config as load_validation_config, split_data, save_split
 from typing import Any, Sequence
 
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
@@ -35,7 +37,7 @@ from module.bedrock import interpolate_bedrock_rbf
 # Configuration
 # -----------------------------------------------------------------------------
 INPUT_CSV = project_path("data/training/phi/model_dataset.csv")
-MODEL_CONFIG = project_path("config/model_phi.jsonc")
+MODEL_CONFIG = project_path("config/phi/model.jsonc")
 OUTPUT_DIR = project_path("results/phi/model/")
 MODEL_OUTPUT = OUTPUT_DIR / "xgb_spt_model.json"
 PREPROCESSOR_OUTPUT = OUTPUT_DIR / "xgb_preprocessor.joblib"
@@ -114,33 +116,6 @@ XGB_PARAMETERS: dict[str, Any] = {
 LOGGER = logging.getLogger(__name__)
 
 
-def load_model_config(path: Path) -> tuple[list[str], list[str]]:
-    """Load and validate the JSON-selected model features."""
-    if not path.is_file():
-        raise FileNotFoundError(f"Model configuration does not exist: {path}")
-    with path.open(encoding="utf-8") as stream:
-        # JSONC-style full-line comments allow optional features to remain
-        # visible without being selected. Inline comments are intentionally
-        # unsupported so feature names containing // remain unambiguous.
-        uncommented = "".join(
-            line for line in stream if not line.lstrip().startswith("//")
-        )
-    # Also tolerate a comma left immediately before ] or } after a line is
-    # commented out, which makes toggling individual feature lines convenient.
-    uncommented = re.sub(r",(?=\s*[}\]])", "", uncommented)
-    config = json.loads(uncommented)
-    numeric = config.get("numeric_features")
-    categorical = config.get("categorical_features")
-    if not isinstance(numeric, list) or not numeric or not all(isinstance(v, str) for v in numeric):
-        raise ValueError("numeric_features must be a non-empty string list.")
-    if not isinstance(categorical, list) or not all(isinstance(v, str) for v in categorical):
-        raise ValueError("categorical_features must be a string list.")
-    duplicates = set(numeric) & set(categorical)
-    if duplicates or len(numeric) != len(set(numeric)) or len(categorical) != len(set(categorical)):
-        raise ValueError("Configured features contain duplicates or numeric/categorical conflicts: " + ", ".join(sorted(duplicates)))
-    return numeric, categorical
-
-
 def load_dataset(path: Path, numeric_features: Sequence[str], categorical_features: Sequence[str]) -> pd.DataFrame:
     """Load and validate the measurement-level dataset from stage 04."""
     if not path.is_file():
@@ -212,9 +187,13 @@ def train_and_evaluate(
     data: pd.DataFrame,
     numeric_features: Sequence[str],
     categorical_features: Sequence[str],
+    validation_config=None,
 ) -> tuple[xgb.XGBRegressor, ColumnTransformer, pd.DataFrame, dict[str, Any]]:
     """Fit with early stopping and evaluate on untouched borehole test data."""
-    train, validation, test = borehole_train_validation_test_split(data)
+    validation_config = validation_config or load_validation_config()
+    train, validation, test = split_data(data, validation_config)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    save_split((train, validation, test), OUTPUT_DIR / f"split_{validation_config['mode']}.csv")
     if BEDROCK_RBF_FEATURE in numeric_features:
         train = add_cross_fitted_bedrock_feature(train)
         sources = train[
@@ -269,7 +248,8 @@ def train_and_evaluate(
             "validation": int(validation[ID_COLUMN].nunique()),
             "test": int(test[ID_COLUMN].nunique()),
         },
-        "split_method": "random_borehole",
+        "split_method": validation_config["mode"],
+        "validation_config": validation_config,
         "best_iteration": int(model.best_iteration),
         "target_cap": TARGET_MAX,
         "numeric_features": list(numeric_features),
@@ -520,7 +500,7 @@ def save_observed_vs_predicted_plot(
     ax.set_aspect("equal", adjustable="box")
     ax.set_xlabel("Observed SPT N-value")
     ax.set_ylabel("Predicted N-value")
-    ax.set_title("Observed vs. predicted N-values (held-out test boreholes)")
+    ax.set_title("Observed vs. predicted N-values (configured holdout)")
     ax.text(
         0.04,
         0.96,
@@ -563,6 +543,16 @@ def main() -> None:
         data, numeric_features, categorical_features
     )
     del evaluation_model, evaluation_preprocessor
+    validation_config = load_validation_config()
+    if validation_config['additional_spatial'] and validation_config['mode'] != 'spatial':
+        spatial_config = dict(validation_config, mode='spatial', additional_spatial=False)
+        spatial_model, spatial_preprocessor, spatial_predictions, spatial_metrics = train_and_evaluate(
+            data, numeric_features, categorical_features, spatial_config)
+        spatial_predictions.to_csv(OUTPUT_DIR / 'spatial_test_predictions.csv', index=False)
+        (OUTPUT_DIR / 'spatial_metrics.json').write_text(json.dumps(spatial_metrics, indent=2) + '\n')
+        metrics['additional_spatial'] = spatial_metrics
+        del spatial_model, spatial_preprocessor
+    metrics['additional_spatial_enabled'] = validation_config['additional_spatial']
     metrics["feature_selection"] = "model_config.jsonc"
     metrics["model_config"] = str(MODEL_CONFIG)
     metrics["excluded_dependent_features"] = [

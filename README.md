@@ -15,7 +15,7 @@ python run_analysis.py
 ```
 
 処理は順番に実行します。c・γ共通のXML抽出は1回です。
-現在、φの既存学習・格子予測を移植済みです。c・γの空間予測モデルは次の開発段階で実装します。
+φの既存学習・格子予測を移植済みです。γはN値を使わないモデルを実装しました（解析・テスト未実行）。cは一時保留です。
 未実装・不足データ・失敗を成功扱いせず、結果JSONに記録し、終了コード2を返します。
 **枠組みの統合段階であり、まだ1回の実行で3種類すべての分布が完成する状態ではありません。**
 
@@ -28,8 +28,8 @@ run_analysis.py                # 3段階を順に実行
 03_create_distributions.py     # 第3段階だけ実行
 config/
   pipeline.json               # 既存データの取込元・取込先
-  model_phi.jsonc             # φ側の既存特徴量設定
-  prediction_phi.json         # 予測格子・深度・出力設定
+  phi/model.jsonc             # φ側の既存特徴量設定
+  phi/prediction.json         # 予測格子・深度・出力設定
 module/                       # 関数・共通処理（解析の本体）
   collection.py               # 元データ取り込み
   download.py                 # KuniJiban XML取得
@@ -62,7 +62,7 @@ results/
   c/                          # 今後実装
   phi/model/                  # モデル・評価
   phi/grid_10m/               # φ・N値の格子分布
-  gamma/                      # 今後実装
+  gamma/runs/                 # 乾燥・湿潤モデル、評価、分布図
   run_summary.json            # 直近実行の各段階・対象別の状態
 logs/
 tests/
@@ -78,7 +78,7 @@ python run_analysis.py --plan
 python run_analysis.py
 ```
 
-出力対象は `config/pipeline.json` の `targets` で指定します。初期値は3種類すべてです。
+出力対象は `config/pipeline.json` の `targets` で指定します。現在の設定はγのみです。
 既存の `sources`・`soiltest_bbox` はそのままにして、この項目だけ編集してください。
 
 ```json
@@ -166,5 +166,123 @@ python -m unittest discover -s tests -v
 python -m unittest -v test_extract_strength.py
 ```
 
-旧 `download_kunijiban.py`・`extract_strength.py`・`make_distributions.py` は互換入口として残し、本体は `module/` に集約しました。
-旧 `output/` の結果は保存されていますが、統合パイプラインは新しい `data/` と `results/` を使います。
+旧互換入口 download_kunijiban.py・extract_strength.py・make_distributions.py・shared_data.py は削除しました。本体は module/ に集約し、テストも本体を直接参照します。
+直下の `output/` は廃止しました。旧抽出表・学習表は `data/`、旧図・集計は `results/archive/legacy_output/` に移動しています。
+
+## φ予測の再実行
+
+`config/phi/prediction.json` の `existing_chunks` は `"archive"` に設定しています。
+予測チャンクが既にある場合、`chunks_previous_*/chunks/` にフォルダを退避し、
+通常の `chunks/` に新しく予測します。退避は移動なのでファイル内容を複製しませんが、
+新しい予測結果を保存する分のディスク容量は必要です。
+`"error"` にすると既存チャンクがある場合は従来どおり停止します。
+
+統合コマンドは再学習するため、旧チャンクの自動再利用は行いません。
+再実行は `python run_analysis.py --stage distribute --targets phi` です。
+このコマンドでも再学習し、全格子を計算し直します。
+既存の `--resume` は同じモデル・入力・設定での継続を利用者が確認した場合だけの機能です。
+過去の実行ですでに再学習済みの場合、残った旧チャンクと現在のモデルの一致は保証できません。
+
+## c・γの土質試験地点を可視化
+
+```bash
+python plot_test_locations.py
+```
+
+`config/test_locations.json` で元XML・出力先を指定します。
+強度試験専用の抽出CSVでは欠落する密度試験も含めるため、元XMLを直接読み込みます。
+`results/test_locations/c_gamma_test_locations.png` とPDFに、c関連の強度試験地点とγの密度試験地点を並べて出力します。
+`test_locations.csv` に地点別の試験有無・座標、`summary.json` に集計、`excluded_records.csv` に座標欠損による除外を保存します。
+
+輪郭は `config/phi/prediction.json` のprop配置・範囲・10m格子に従い、0と非0の境界を線にします。
+負値や10以上の値も非0として扱い、元格子を間引きません。範囲外の地点は中抜きで表示します。
+この線はpropの境界であり、別途取得した海岸線データではありません。
+XMLの測地系コード00（日本測地系）・01（JGD2000）・02（JGD2011）を読み、同じ平面座標系に変換します。
+コードの出典：[電子納品要領・土質試験結果一覧表データ 表2-4](https://www.maff.go.jp/j/nousin/seko/nouhin_youryou/attach/pdf/doboku-40.pdf)。
+不明な測地系は推測せずエラーとします。
+
+初回作成時点：c関連193地点、粘着力cそのもの0地点、湿潤・乾燥密度各184地点。
+propの範囲外は全体で24地点。試料深度別の試験は同じ孔・位置に集約します。
+図は予測分布ではなく試験地点図です。cは一時保留です。γは以下のN値を使わないモデルを実装しました（動作未検証）。
+
+
+## N値を使わない乾燥・湿潤γモデル
+
+コードを実装しましたが、今回の変更後の解析・学習・テストは未実行です。
+`python run_analysis.py` で収集・整理・学習・分布作成を順に実行します。
+現在の `config/pipeline.json` の targets は `["gamma"]` です。
+φも作成する場合は `["phi", "gamma"]` に変更します。cは一時保留です。
+
+説明変数は `config/gamma/model.jsonc` の x, y, depth, surface_z, slope,
+curvature, jshis_avs30, symbol, jshis_jcode。N値は使用しません。
+`config/gamma/prediction.json` の prediction_depth_m（初期値1m）を変更できます。
+湿潤・乾燥密度[g/cm³]を9.80665倍して単位体積重量[kN/m³]に変換し、別々に学習します。
+密度のみのXML試験も収集し、欠損・不正値・DEM範囲外の除外記録を残します。
+学習表は data/training/gamma/、モデルと結果は results/gamma/runs/実行ID/ に保存します。
+grid/gamma_wet.png・gamma_dry.png はpropの0/非0境界を重ねた分布図です。
+数値は10m格子のnpyと圧縮CSV、図の表示間隔は初期値100mです。
+各実行は新規ディレクトリに保存し、既存結果を上書きしません。
+全格子の処理が完了した場合だけ latest.json を更新します。
+乾燥γが湿潤γを上回る予測は補正せず、件数をprediction_summary.jsonに記録します。
+
+## N値・γのvalidation切り替え
+
+N値モデルは `config/phi/validation.json`、γは `config/gamma/prediction.json` の
+validation を編集します。
+
+```json
+{"mode": "borehole", "additional_spatial": true,
+ "block_size_m": 10000.0, "test_size": 0.2,
+ "validation_size": 0.2, "random_state": 42}
+```
+
+- mode=borehole：孔単位の分割。初期設定です。
+- mode=spatial：平面座標の格子ブロック単位の分割。全深度を同じ分割へ入れます。
+- mode=row：行単位。同じ孔が学習・評価に混在し得るため未知孔への評価とは区別します。
+- additional_spatial=false：追加の空間評価を実行しません。
+- mode=row、additional_spatial=false：孔単位・空間評価を両方無効にします（行単位評価は残ります）。
+
+空間ブロックの初期幅10kmは暫定値です。座標原点を基準に区切り、ブロックをランダムに
+学習・validation・testへ分ける単回holdoutです。連続した地域の除外やバッファ付きCVではありません。
+validation_sizeはtestを除いた残りに対する割合です。分割可能なグループが不足すれば停止します。
+追加の空間評価は別モデルで実施し、主評価の木数選択や最終モデルを変更しません。
+主評価のvalidationで木数を選び、その木数で全データに再学習します。
+空間評価はspatial_metrics.json・spatial_test_predictions.csvに保存します。
+無効化しても以前の評価ファイルは削除しません。現在のmetrics.jsonの設定を確認してください。
+
+
+## configの配置
+
+```text
+config/
+  pipeline.json          # 出力対象・収集設定
+  spatial.json           # 共通の格子・DEM・prop・座標系
+  test_locations.json    # c・γ共通の試験地点図
+  c/                     # c固有設定（実装待ち）
+  phi/
+    model.jsonc
+    prediction.json
+    validation.json
+  gamma/
+    model.jsonc
+    prediction.json      # γの予測・学習・validation設定
+```
+
+φとγはconfig/spatial.jsonを共有します。深度は各対象のprediction.jsonで指定します。
+γのobserved_vs_predicted.pngには評価用データのR²を左上に表示します（φには既に表示あり）。
+γ分布図のタイトルは英語、軸はメートルです。北を上にした図で、平面直角座標系VIIの
+正式な軸名に従い横軸Y（東西）、縦軸X（南北）とします。
+内部のデータ列x=東西、y=南北は従来どおりです。図・評価結果の再生成は行っていません。
+
+## 保存先の整理
+
+入力・中間・学習データはdata/、モデル・評価・分布図はresults/、実行ログはlogs/です。
+[保存先と旧outputからの移動一覧](docs/output_layout.md)を参照してください。
+
+## N値の導入比較
+
+[対応ルール・比較条件・信頼性指標・実行設定](docs/n_comparison.md)を追加しました。
+config/gamma/n_comparison.jsonのenabledで切り替えます。今回の変更後の解析・テストは未実行です。
+比較のみの場合はconfig/gamma/prediction.jsonのcreate_distributionをfalseにしてください。
+
+採用分布モデルをpredicted_nに変更しました。設定と学習条件は[比較・採用モデルの説明](docs/n_comparison.md)を参照してください。既存結果の更新・解析・テストは行っていません。

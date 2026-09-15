@@ -1,0 +1,25 @@
+{
+  "enabled": true,
+  "spt_input": "data/raw/boring/BorToCsv.csv",
+  "model_config": "config/phi/model.jsonc",
+  "xy_tolerance_m": 0.01,
+  "depth_tolerance_m": 1e-06,
+  "cross_fit_folds": 5,
+  "ensemble_seeds": [
+    42,
+    43,
+    44
+  ],
+  "interval_coverage": 0.9,
+  "nearby_radius_m": 1000.0,
+  "supplemental_weight": 1.0,
+  "scenarios": [
+    "no_n",
+    "measured_n",
+    "measured_to_predicted_n",
+    "predicted_n",
+    "predicted_n_reliability",
+    "measured_plus_supplemental",
+    "no_n_with_supplemental"
+  ]
+}

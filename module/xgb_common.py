@@ -106,3 +106,34 @@ def build_regressor(parameters):
     """Construct the shared XGBoost regressor from explicit model parameters."""
     from xgboost import XGBRegressor
     return XGBRegressor(**parameters)
+
+
+import json
+import re
+from pathlib import Path
+
+def load_model_config(path: Path) -> tuple[list[str], list[str]]:
+    """Load and validate the JSON-selected model features."""
+    if not path.is_file():
+        raise FileNotFoundError(f"Model configuration does not exist: {path}")
+    with path.open(encoding="utf-8") as stream:
+        # JSONC-style full-line comments allow optional features to remain
+        # visible without being selected. Inline comments are intentionally
+        # unsupported so feature names containing // remain unambiguous.
+        uncommented = "".join(
+            line for line in stream if not line.lstrip().startswith("//")
+        )
+    # Also tolerate a comma left immediately before ] or } after a line is
+    # commented out, which makes toggling individual feature lines convenient.
+    uncommented = re.sub(r",(?=\s*[}\]])", "", uncommented)
+    config = json.loads(uncommented)
+    numeric = config.get("numeric_features")
+    categorical = config.get("categorical_features")
+    if not isinstance(numeric, list) or not numeric or not all(isinstance(v, str) for v in numeric):
+        raise ValueError("numeric_features must be a non-empty string list.")
+    if not isinstance(categorical, list) or not all(isinstance(v, str) for v in categorical):
+        raise ValueError("categorical_features must be a string list.")
+    duplicates = set(numeric) & set(categorical)
+    if duplicates or len(numeric) != len(set(numeric)) or len(categorical) != len(set(categorical)):
+        raise ValueError("Configured features contain duplicates or numeric/categorical conflicts: " + ", ".join(sorted(duplicates)))
+    return numeric, categorical

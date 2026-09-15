@@ -1,0 +1,15 @@
+{
+  "numeric_features": [
+    "x",
+    "y",
+    "depth",
+    "surface_z",
+    "slope",
+    "curvature",
+    "jshis_avs30"
+  ],
+  "categorical_features": [
+    "symbol",
+    "jshis_jcode"
+  ]
+}

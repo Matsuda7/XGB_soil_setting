@@ -67,7 +67,21 @@ def collect(config: dict, download: bool = False) -> dict:
 
 
 def missing_inputs(target: str, stage: str) -> list[str]:
-    if target in {'c', 'gamma'}:
+    if target == 'gamma':
+        from module.gamma_config import load_config
+        gamma_config = load_config()
+        cfg = gamma_config['spatial']
+        missing = [] if any((RAW / 'soiltest/strength').rglob('*.xml')) else ['data/raw/soiltest/strength/**/*.xml']
+        if gamma_config['n_comparison']['enabled'] and not project_path(gamma_config['n_comparison']['spt_input']).is_file():
+            missing.append(gamma_config['n_comparison']['spt_input'])
+        for key in (('dem_input', 'grid_input', 'property_mask') if stage == 'distribute' and gamma_config['create_distribution'] else ('dem_input',)):
+            if not project_path(cfg[key]).is_file():
+                missing.append(str(cfg[key]))
+        for folder, pattern in [('geology', '*_poly.shp'), ('jshis', 'Z-V4-JAPAN-AMP-VS400_M250.csv')]:
+            if not any((RAW / folder).rglob(pattern)):
+                missing.append(f'data/raw/{folder}/**/{pattern}')
+        return missing
+    if target == 'c':
         return [] if any((RAW / 'soiltest').rglob('*.xml')) else ['data/raw/soiltest/**/*.xml']
     required = [RAW / 'boring/BorToCsv.csv', RAW / 'dem/z.txt']
     missing = [str(path.relative_to(ROOT)) for path in required if not path.is_file()]
@@ -75,7 +89,8 @@ def missing_inputs(target: str, stage: str) -> list[str]:
         if not any((RAW / folder).rglob(pattern)):
             missing.append(f'data/raw/{folder}/**/{pattern}')
     if stage == 'distribute':
-        config = json.loads((ROOT / 'config/prediction_phi.json').read_text())
+        from module.configuration import load_prediction_settings
+        config = load_prediction_settings('config/phi/prediction.json')
         for key in ('grid_input', 'property_mask'):
             if config.get(key) is not None and not project_path(config[key]).is_file():
                 missing.append(str(config[key]))

@@ -30,7 +30,8 @@ input_xml/*
 !input_xml/.gitkeep
 metadata/*
 !metadata/.gitkeep
-output/*
-!output/.gitkeep
 logs/*
 !logs/.gitkeep
+
+# Keep the result directory guide in Git
+!results/README.md

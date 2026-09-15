@@ -1,0 +1,8 @@
+{
+  "mode": "borehole",
+  "additional_spatial": true,
+  "block_size_m": 10000.0,
+  "test_size": 0.2,
+  "validation_size": 0.2,
+  "random_state": 42
+}

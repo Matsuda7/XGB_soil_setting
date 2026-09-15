@@ -1,11 +1,7 @@
 {
-  "grid_input": "data/raw/grid/output4.txt",
-  "dem_input": "data/raw/dem/z.txt",
-  "dem_cache": "data/cache/dem/z.npy",
+  "spatial_config": "config/spatial.json",
   "borehole_data": "data/raw/boring/BorToCsv.csv",
-  "grid_crs": "EPSG:6675",
   "prediction_depth_m": 1.0,
-  "grid_spacing_m": 10.0,
   "display_spacing_m": 10.0,
   "n_plot_min": 0.0,
   "n_plot_max": 62.0,
@@ -13,17 +9,10 @@
   "include_outside_dem_boreholes": false,
   "outside_dem_fill_value": 0.0,
   "output_chunk_dir": "results/phi/grid_10m/chunks",
-  "property_mask": "data/raw/grid/prop.txt",
-  "property_mask_spacing_m": 10.0,
-  "property_mask_bounds": {
-    "xmin": -45800.0,
-    "xmax": 19000.0,
-    "ymin": 105400.0,
-    "ymax": 171200.0
-  },
   "n_value_plot": "results/phi/grid_10m/N_value_10m.png",
   "phi_plot": "results/phi/grid_10m/phi_10m.png",
   "phi_text": "results/phi/grid_10m/phi_10m.txt.gz",
   "bedrock_plot": "results/phi/grid_10m/assumed_bedrock_10m.png",
-  "bedrock_text": "results/phi/grid_10m/assumed_bedrock_10m.txt.gz"
+  "bedrock_text": "results/phi/grid_10m/assumed_bedrock_10m.txt.gz",
+  "existing_chunks": "archive"
 }

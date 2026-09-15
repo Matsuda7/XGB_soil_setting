@@ -9,3 +9,4 @@ scikit-learn>=1.5,<2
 xgboost>=3.0,<4
 joblib>=1.4,<2
 requests>=2.31,<3
+contourpy>=1.2,<2

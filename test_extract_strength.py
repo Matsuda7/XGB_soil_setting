@@ -1,7 +1,7 @@
 import unittest
 from xml.etree import ElementTree as ET
 
-from extract_strength import build_summary, make_row, candidate_records, descendant_values
+from module.strength import build_summary, make_row, candidate_records, descendant_values
 
 
 class ExtractStrengthTests(unittest.TestCase):
