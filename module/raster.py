@@ -1,4 +1,5 @@
 """Shared full-resolution prop masks and zero/nonzero boundaries."""
+import gzip
 from pathlib import Path
 import contourpy
 import numpy as np
@@ -37,3 +38,21 @@ def boundary_segments(mask, bounds, spacing, block_rows=256):
         segments.extend(generator.lines(0.5))
     return segments
 
+
+
+def save_text_matrix(path, grid, mask):
+    """Write a phi-compatible gzip matrix, zero outside prop, one row at a time."""
+    path = Path(path)
+    if grid.ndim != 2 or grid.shape != mask.shape:
+        raise ValueError('Matrix and prop mask must have the same 2D shape')
+    temporary = path.with_suffix(path.suffix + '.tmp')
+    try:
+        with gzip.open(temporary, 'wt', encoding='utf-8', compresslevel=1) as stream:
+            for index in range(grid.shape[0]):
+                row = np.where(mask[index] != 0, grid[index], 0.0)
+                if not np.isfinite(row).all():
+                    raise ValueError(f'Non-finite active predictions in matrix row {index}')
+                np.savetxt(stream, row[None, :], fmt='%.6f')
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)

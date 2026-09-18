@@ -1,6 +1,7 @@
 {
   "targets": [
-    "gamma"
+    "c"
+    ,"gamma"
     ,"phi"
   ],
   "sources": [],

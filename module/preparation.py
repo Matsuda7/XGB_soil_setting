@@ -17,16 +17,8 @@ def prepare_strength(targets):
         from module.gamma_data import prepare
         report['gamma'] = prepare(raw=frame)
     if 'c' in targets:
-        # Preserve the distinction between cohesion and measured shear strength.
-        cohesion = pd.to_numeric(frame['c_total'], errors='coerce')
-        valid = cohesion.notna()
-        dataset = frame.loc[valid, features + ['unit_c']].copy()
-        dataset.insert(0, 'target', cohesion.loc[valid])
-        path = TRAINING / 'c/candidates.csv'
-        path.parent.mkdir(parents=True, exist_ok=True)
-        dataset.to_csv(path, index=False, encoding='utf-8-sig')
-        report['c'] = {'status': 'needs_definition' if len(dataset) else 'no_data', 'rows': len(dataset),
-                       'reason': 'Cohesion definition, units and training policy must be confirmed; shear strength is not substituted.'}
+        from module.c_model_a import prepare
+        report['c'] = prepare(raw=frame)
     return report
 
 

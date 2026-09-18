@@ -9,6 +9,7 @@ import os
 import re
 from pathlib import Path
 from module.paths import project_path
+from module.model_reporting import save_model_reports
 from module.xgb_common import load_model_config
 from module.validation import load_config as load_validation_config, split_data, save_split
 from typing import Any, Sequence
@@ -225,6 +226,8 @@ def train_and_evaluate(
         eval_set=[(x_validation, validation[TARGET_COLUMN])],
         verbose=False,
     )
+    save_model_reports(model, preprocessor, numeric_features, categorical_features, train[TARGET_COLUMN],
+                       OUTPUT_DIR / "evaluation" / validation_config["mode"], "SPT N-value")
     prediction = np.clip(model.predict(x_test), TARGET_MIN, TARGET_MAX)
     prediction_table = test[
         [ID_COLUMN, "measurement_no", "x", "y", "depth", TARGET_COLUMN]
@@ -286,6 +289,8 @@ def fit_final_model(
     parameters["n_estimators"] = n_estimators
     model = build_regressor(parameters)
     model.fit(x_all, data[TARGET_COLUMN], verbose=False)
+    save_model_reports(model, preprocessor, numeric_features, categorical_features, data[TARGET_COLUMN],
+                       OUTPUT_DIR, "SPT N-value", population="all-data final fitting records")
     return model, preprocessor
 
 

@@ -7,6 +7,7 @@ from sklearn.model_selection import GroupKFold
 from module.paths import TRAINING
 from module.gamma_features import model_frame
 from module.n_estimation import fit_predict, exclude_queries, spatial_keys, predict_ensemble
+from module.model_reporting import save_model_reports
 from module.xgb_common import build_preprocessor, build_regressor
 
 
@@ -51,6 +52,8 @@ def train_selected(config, run):
         model=build_regressor(params);model.fit(x,selected['gamma_'+kind],verbose=False)
         output=run/'models'/kind;output.mkdir(parents=True,exist_ok=True)
         model.save_model(output/'model.json');joblib.dump(transform,output/'preprocessor.joblib')
+        save_model_reports(model,transform,features,config['categorical_features'],selected['gamma_'+kind],output,
+                           'Unit weight gamma (kN/m³)',population='all primary final fitting records',density_gravity=config['gravity_m_s2'])
         metrics={'distribution_model':'predicted_n','numeric_features':features,
                  'categorical_features':config['categorical_features'],
                  'final_fit_rows':len(selected),'final_fit_holes':int(selected.boring_id.nunique()),

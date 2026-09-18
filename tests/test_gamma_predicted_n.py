@@ -34,7 +34,7 @@ class PredictedNTests(unittest.TestCase):
         config={'distribution_model':'predicted_n','gravity_m_s2':9.80665}
         points=pd.DataFrame({'x':[1.], 'y':[2.]})
         def enrich(frame,*args):
-            return frame.assign(surface_z=10.)
+            return frame.assign(surface_z=10.,sample_z=10.-frame.depth)
         def add(frame,artifact):
             self.assertEqual(frame.depth.iloc[0],2.)
             return frame.assign(n_input=25.,n_ensemble_std=1.,n_lower=20.,n_upper=30.)

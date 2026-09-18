@@ -15,9 +15,9 @@ python run_analysis.py
 ```
 
 処理は順番に実行します。c・γ共通のXML抽出は1回です。
-φの既存学習・格子予測を移植済みです。γはN値を使わないモデルを実装しました（解析・テスト未実行）。cは一時保留です。
+φの既存学習・格子予測を移植済みです。γはN値を使わないモデルを実装しました（解析・テスト未実行）。cはCŪ・CDを使うモデルAを実装済みです（未実行）。
 未実装・不足データ・失敗を成功扱いせず、結果JSONに記録し、終了コード2を返します。
-**枠組みの統合段階であり、まだ1回の実行で3種類すべての分布が完成する状態ではありません。**
+c（モデルA）・φ・γをtargetsで選択して実行するコードを整備しています。変更後の通し実行は未確認です。
 
 ## ディレクトリ
 
@@ -59,7 +59,7 @@ data/
     gamma/wet.csv             # 湿潤γをtargetにした表
     gamma/dry.csv             # 乾燥γをtargetにした表
 results/
-  c/                          # 今後実装
+  c/model_A/                  # 有効粘着力のモデル・評価・分布
   phi/model/                  # モデル・評価
   phi/grid_10m/               # φ・N値の格子分布
   gamma/runs/                 # 乾燥・湿潤モデル、評価、分布図
@@ -78,7 +78,7 @@ python run_analysis.py --plan
 python run_analysis.py
 ```
 
-出力対象は `config/pipeline.json` の `targets` で指定します。現在の設定はγのみです。
+出力対象は `config/pipeline.json` の `targets` で指定します。現在の設定はc（モデルA）のみです。
 既存の `sources`・`soiltest_bbox` はそのままにして、この項目だけ編集してください。
 
 ```json
@@ -203,15 +203,15 @@ XMLの測地系コード00（日本測地系）・01（JGD2000）・02（JGD2011
 
 初回作成時点：c関連193地点、粘着力cそのもの0地点、湿潤・乾燥密度各184地点。
 propの範囲外は全体で24地点。試料深度別の試験は同じ孔・位置に集約します。
-図は予測分布ではなく試験地点図です。cは一時保留です。γは以下のN値を使わないモデルを実装しました（動作未検証）。
+図は予測分布ではなく試験地点図です。cはCŪ・CDを使うモデルAを実装済みです（未実行）。γは以下のN値を使わないモデルを実装しました（動作未検証）。
 
 
 ## N値を使わない乾燥・湿潤γモデル
 
 コードを実装しましたが、今回の変更後の解析・学習・テストは未実行です。
 `python run_analysis.py` で収集・整理・学習・分布作成を順に実行します。
-現在の `config/pipeline.json` の targets は `["gamma"]` です。
-φも作成する場合は `["phi", "gamma"]` に変更します。cは一時保留です。
+現在の `config/pipeline.json` の targets は `["c"]` です。γのみなら `["gamma"]` に変更します。
+φも作成する場合は `["phi", "gamma"]` に変更します。cはCŪ・CDを使うモデルAを実装済みです（未実行）。
 
 説明変数は `config/gamma/model.jsonc` の x, y, depth, surface_z, slope,
 curvature, jshis_avs30, symbol, jshis_jcode。N値は使用しません。
@@ -258,7 +258,7 @@ config/
   pipeline.json          # 出力対象・収集設定
   spatial.json           # 共通の格子・DEM・prop・座標系
   test_locations.json    # c・γ共通の試験地点図
-  c/                     # c固有設定（実装待ち）
+  c/                     # モデルAの予測・validation設定
   phi/
     model.jsonc
     prediction.json
@@ -286,3 +286,17 @@ config/gamma/n_comparison.jsonのenabledで切り替えます。今回の変更�
 比較のみの場合はconfig/gamma/prediction.jsonのcreate_distributionをfalseにしてください。
 
 採用分布モデルをpredicted_nに変更しました。設定と学習条件は[比較・採用モデルの説明](docs/n_comparison.md)を参照してください。既存結果の更新・解析・テストは行っていません。
+
+## c：モデルA
+
+CŪ・CD試験から有効粘着力c′を予測する[モデルA](docs/c_model_a.md)を実装しました。
+現在のtargetsはcです。解析・学習・テストは未実行です。c全体を実装待ちとしていた記述はモデルAには当てはまりません。
+
+## モデル作成時の必須図表
+
+寄与度の表・棒グラフと、学習目的値の度数分布図を必ず保存します。
+[出力ファイルと算出方法](docs/model_reporting.md)を参照してください。今回の変更後の解析・テストは未実行です。
+
+## 最新のc・γ説明変数
+
+c・γとも試料標高と推定N値を含む9変数に変更しました。[最新設定と標高の定義](docs/soil_predictors.md)を参照してください。旧説明変数の記述よりこちらを優先します。

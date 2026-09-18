@@ -1,5 +1,4 @@
 """Chunked wet/dry inference and prop-masked gamma distribution products."""
-import gzip
 import json
 import logging
 from pathlib import Path
@@ -12,7 +11,7 @@ from matplotlib.collections import LineCollection
 from module.paths import project_path
 from module.gamma_config import KINDS, grid_shape
 from module.gamma_features import load_dem, geographic_context, enrich, model_frame
-from module.raster import read_binary_mask,boundary_segments
+from module.raster import read_binary_mask,boundary_segments,save_text_matrix
 LOGGER=logging.getLogger(__name__)
 
 
@@ -38,7 +37,7 @@ def predict_points(points,depth,config,context,models,n_artifact=None):
             raise ValueError('Missing N model for predicted_n distribution')
         from module.gamma_predicted_n import add_predicted_n
         enriched = add_predicted_n(enriched, n_artifact)
-    output=enriched[['x','y']].copy()
+    output=enriched[['x','y','sample_z']].copy()
     if n_artifact is not None:
         for name in ('n_input','n_ensemble_std','n_lower','n_upper'):
             output[name] = enriched[name]
@@ -131,7 +130,6 @@ def predict_grid(config,models,output,max_chunks=None,n_artifact=None):
     if status=='complete':
         if config['write_text_matrix']:
             for kind,grid in matrices.items():
-                with gzip.open(output/f'gamma_{kind}.txt.gz','wt',compresslevel=1) as stream:
-                    np.savetxt(stream,grid,fmt='%.6f')
+                save_text_matrix(output/f'gamma_{kind}.txt.gz',grid,mask)
         plot_maps(matrices,mask,config,output)
     return report

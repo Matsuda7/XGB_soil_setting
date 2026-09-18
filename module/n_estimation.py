@@ -6,6 +6,7 @@ import joblib
 from scipy.spatial import cKDTree
 from module.validation import split_data, save_split
 from module.gamma_features import model_frame
+from module.model_reporting import save_model_reports
 from module.xgb_common import build_preprocessor, build_regressor, regression_metrics
 
 RELIABILITY_COLUMNS = ['n_ensemble_std','n_interval_width','n_nearest_hole_distance_m',
@@ -54,6 +55,7 @@ def fit_predict(spt, query, validation, options, numeric, categorical, parameter
     xv = transform.transform(model_frame(tuning,numeric,categorical))
     tuning_model = build_regressor(parameters)
     tuning_model.fit(xt,train.n_value,eval_set=[(xv,tuning.n_value)],verbose=False)
+    save_model_reports(tuning_model,transform,numeric,categorical,train.n_value,output/'tuning','SPT N-value')
     trees = int(tuning_model.best_iteration)+1
     source = pd.concat([train,tuning],ignore_index=True)
     transform = build_preprocessor(numeric,categorical)
@@ -64,6 +66,8 @@ def fit_predict(spt, query, validation, options, numeric, categorical, parameter
         params.pop('early_stopping_rounds',None)
         model=build_regressor(params);model.fit(xs,source.n_value,verbose=False)
         model.save_model(output/f'model_seed_{seed}.json');models.append(model)
+        save_model_reports(model,transform,numeric,categorical,source.n_value,output/f'reports/seed_{seed}',
+                           'SPT N-value',population='N-model train plus tuning; calibration excluded')
     joblib.dump(transform, output/'preprocessor.joblib')
     cal_samples=predict_ensemble(models,transform,calibration,numeric,categorical)
     cal_prediction=cal_samples.mean(axis=0)

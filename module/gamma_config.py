@@ -5,7 +5,7 @@ from module.paths import CONFIG, project_path
 from module.xgb_common import load_model_config
 
 KINDS = ('wet', 'dry')
-NUMERIC = {'x','y','depth','surface_z','sample_z','slope','curvature','jshis_avs30','jshis_arv','dem_missing'}
+NUMERIC = {'n_input','x','y','depth','surface_z','sample_z','slope','curvature','jshis_avs30','jshis_arv','dem_missing'}
 CATEGORICAL = {'symbol','jshis_jcode','ser'}
 
 
@@ -57,7 +57,9 @@ def load_config(path=None):
     numeric, categorical = load_model_config(project_path(config['model_config']))
     if set(numeric)-NUMERIC or set(categorical)-CATEGORICAL:
         raise ValueError('Gamma features must be available at prediction grid points; density and laboratory properties are not allowed')
-    config['numeric_features'], config['categorical_features'] = numeric, categorical
+    # no-N comparison conditions remove n_input; predicted-N conditions add it once.
+    config['declared_numeric_features'] = numeric
+    config['numeric_features'], config['categorical_features'] = [n for n in numeric if n != 'n_input'], categorical
     config['spatial'] = spatial
     return config
 
@@ -65,5 +67,7 @@ def load_config(path=None):
 def data_signature(config):
     spatial = config['spatial']
     return {k:config[k] for k in ('density_unit','gravity_m_s2','exclude_outside_dem')} | {
+        'numeric_features':config['numeric_features'],
+        'categorical_features':config['categorical_features'],
         'n_comparison':config.get('n_comparison', {'enabled':False}),
         'spatial':{k:spatial[k] for k in ('grid_crs','dem_input','dem_cache','grid_spacing_m','property_mask_spacing_m','property_mask_bounds')}}

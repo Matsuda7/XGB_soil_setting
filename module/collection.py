@@ -82,7 +82,19 @@ def missing_inputs(target: str, stage: str) -> list[str]:
                 missing.append(f'data/raw/{folder}/**/{pattern}')
         return missing
     if target == 'c':
-        return [] if any((RAW / 'soiltest').rglob('*.xml')) else ['data/raw/soiltest/**/*.xml']
+        from module.c_model_a import load_config
+        c_config = load_config()
+        cfg = c_config['spatial']
+        missing_n = []
+        if 'n_input' in c_config['numeric_features'] and not project_path(c_config['n_comparison']['spt_input']).is_file():
+            missing_n.append(c_config['n_comparison']['spt_input'])
+        missing = [] if any((RAW / 'soiltest/strength').rglob('*.xml')) else ['data/raw/soiltest/strength/**/*.xml']
+        missing += missing_n
+        for key in (('dem_input','grid_input','property_mask') if stage == 'distribute' else ('dem_input',)):
+            if not project_path(cfg[key]).is_file(): missing.append(str(cfg[key]))
+        for folder, pattern in [('geology','*_poly.shp'),('jshis','Z-V4-JAPAN-AMP-VS400_M250.csv')]:
+            if not any((RAW/folder).rglob(pattern)): missing.append(f'data/raw/{folder}/**/{pattern}')
+        return missing
     required = [RAW / 'boring/BorToCsv.csv', RAW / 'dem/z.txt']
     missing = [str(path.relative_to(ROOT)) for path in required if not path.is_file()]
     for folder, pattern in [('geology', '*.shp'), ('jshis', 'Z-V4-JAPAN-AMP-VS400_M250.csv')]:

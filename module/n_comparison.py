@@ -9,6 +9,7 @@ from sklearn.model_selection import GroupKFold
 from module.paths import TRAINING
 from module.validation import split_data, save_split
 from module.gamma_features import model_frame
+from module.model_reporting import save_model_reports
 from module.xgb_common import build_preprocessor, build_regressor, regression_metrics
 from module.n_estimation import exclude_queries, fit_predict, spatial_keys, RELIABILITY_COLUMNS
 
@@ -108,6 +109,8 @@ def comparison_for_kind(parts,kind,config,output):
         artifact.mkdir(parents=True, exist_ok=True)
         if not (artifact/'model.json').exists():
             model.save_model(artifact/'model.json');joblib.dump(transform,artifact/'preprocessor.joblib')
+            save_model_reports(model,transform,features,categorical,fitting.target,artifact,
+                               'Unit weight gamma (kN/m³)',population='comparison fitting records; unweighted counts',density_gravity=config['gravity_m_s2'])
         row={'scenario':scenario,'model_directory':str(artifact.relative_to(output)), 'status':'complete','training_rows':len(fitting),
              'primary_training_rows':int(fitting.n_measured.notna().sum()),
              'supplemental_training_rows':int(fitting.n_measured.isna().sum()),

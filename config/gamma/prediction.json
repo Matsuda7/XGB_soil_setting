@@ -7,7 +7,7 @@
   "exclude_outside_dem": true,
   "input_chunk_size": 100000,
   "display_spacing_m": 100.0,
-  "write_text_matrix": false,
+  "write_text_matrix": true,
   "output_dir": "results/gamma",
   "xgb_parameters": {
     "objective": "reg:squarederror",

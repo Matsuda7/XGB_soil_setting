@@ -96,7 +96,7 @@ def prepare_n_data(frame, config, output, dem, geology, jshis):
     spt['n_value_elevation'] = spt.surface_z-spt.depth
     spt['sample_z'] = spt.n_value_elevation
     spt.to_csv(output/'n_spt.csv', index=False)
-    report = {'scope':'density measurements retained for gamma training',
+    report = {'scope':f"soil-test measurements retained for {config.get('model', 'gamma')} training",
               'rows':len(frame), 'matched_rows':int(frame.n_measured.notna().sum()),
               'unmatched_rows':int(frame.n_measured.isna().sum()),
               'methods':frame.n_match_method.value_counts().to_dict(),

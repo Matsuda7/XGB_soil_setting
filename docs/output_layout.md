@@ -14,7 +14,7 @@
 | results/gamma/runs/<実行ID>/grid/ | 同じ実行のγ分布図・格子値・チャンク |
 | results/gamma/latest.json | 最後に完了したγ実行のIDと状態 |
 | results/test_locations/ | 試験地点図・地点一覧 |
-| results/c/ | 実装待ち |
+| results/c/model_A/ | 有効粘着力のモデル・評価・分布。latest.jsonとruns/で実行を管理 |
 | results/archive/ | 統合前などの過去結果。現行予測には使わない |
 | results/run_summary.json | 最後の統合コマンドの状態（対象はtargetsを確認） |
 | logs/ | 実行ログ |
@@ -40,3 +40,18 @@ latest.jsonは直前に完了した実行を指し続けます。φは従来の�
 | output/distributions/model_dataset_cohesion.csv | data/training/legacy_output/model_dataset_cohesion.csv |
 | output/distributions/model_dataset_dry_gamma.csv | data/training/legacy_output/model_dataset_dry_gamma.csv |
 | output/distributions/model_dataset_wet_gamma.csv | data/training/legacy_output/model_dataset_wet_gamma.csv |
+
+## c・γの二次元テキスト行列
+
+次回の分布予測が完了すると、以下も保存します。
+
+- `results/c/model_A/runs/<実行ID>/grid/c_effective_kpa.txt.gz`：有効粘着力（kPa）
+- `results/gamma/runs/<実行ID>/grid/gamma_wet.txt.gz`：湿潤単位体積重量（kN/m³）
+- `results/gamma/runs/<実行ID>/grid/gamma_dry.txt.gz`：乾燥単位体積重量（kN/m³）
+
+`phi/grid_10m/phi_10m.txt.gz` と同じく、ヘッダーなし・空白区切り・小数点以下6桁のgzip圧縮行列です。
+共有格子の全解像度（現在10 m）で、先頭行は南端、先頭列は西端です。行は北向き、列は東向きに増えます。
+`prop=0` のセルは0です。0は領域外と有効な予測値の両方で現れ得るため、区別にはpropを使用してください。
+既存の `.npy` は従来どおり領域外をNaNで保持します。未完了の予測ではテキスト行列を出力しません。
+各 `config/c/prediction.json`・`config/gamma/prediction.json` の `write_text_matrix` で出力を切り替えます（既定設定true）。
+既存結果は自動変換されません。

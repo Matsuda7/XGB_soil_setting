@@ -1,4 +1,4 @@
-"""Stage three dispatch for phi and gamma; cohesion is pending."""
+"""Stage three dispatch for phi, gamma and effective-cohesion Model A."""
 from module.paths import RESULTS
 
 
@@ -12,5 +12,8 @@ def distribute(target):
     if target == 'gamma':
         from module.gamma import distribute as distribute_gamma
         return distribute_gamma()
+    if target == 'c':
+        from module.c_model_a import distribute as distribute_c
+        return distribute_c()
     return {'status': 'not_implemented',
             'reason': f'{target}: 実装待ち（cは変換方法の検討のため一時保留）'}

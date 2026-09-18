@@ -11,6 +11,7 @@ from module.paths import TRAINING
 from module.validation import split_data, save_split
 from module.gamma_config import KINDS, data_signature
 from module.gamma_features import model_frame
+from module.model_reporting import save_model_reports
 from module.xgb_common import borehole_train_validation_test_split, build_preprocessor, build_regressor, regression_metrics
 
 
@@ -38,12 +39,16 @@ def train_variant(data,config,output):
     numeric,categorical=config['numeric_features'],config['categorical_features']
     parameters=dict(config['xgb_parameters'])
     model,preprocessor,prediction=fit_evaluation(parts,numeric,categorical,parameters)
+    save_model_reports(model,preprocessor,numeric,categorical,train.target,output/'evaluation',
+                       'Unit weight gamma (kN/m³)',density_gravity=config['gravity_m_s2'])
     best=int(model.best_iteration)+1
     spatial_metrics = None
     validation_config = config['validation']
     if validation_config['additional_spatial'] and validation_config['mode'] != 'spatial':
         spatial_parts = split_data(data, dict(validation_config, mode='spatial'), target_column='target')
         spatial_model, spatial_preprocessor, spatial_prediction = fit_evaluation(spatial_parts, numeric, categorical, parameters)
+        save_model_reports(spatial_model,spatial_preprocessor,numeric,categorical,spatial_parts[0].target,
+                           output/'spatial_evaluation','Unit weight gamma (kN/m³)',density_gravity=config['gravity_m_s2'])
         spatial_metrics = regression_metrics(spatial_parts[2].target, spatial_prediction)
         save_split(spatial_parts, output/'spatial_split.csv')
         spatial_test = spatial_parts[2][['boring_id','x','y','depth','target']].copy()
@@ -53,6 +58,8 @@ def train_variant(data,config,output):
         del spatial_model, spatial_preprocessor
     comparison=[{'features':'median_of_training_targets',**regression_metrics(test.target,np.full(len(test),train.target.median()))}]
     baseline,baseline_preprocessor,baseline_prediction=fit_evaluation(parts,['x','y','depth'],[],parameters)
+    save_model_reports(baseline,baseline_preprocessor,['x','y','depth'],[],train.target,output/'baseline',
+                       'Unit weight gamma (kN/m³)',density_gravity=config['gravity_m_s2'])
     comparison.append({'features':'position_and_depth',**regression_metrics(test.target,baseline_prediction)})
     comparison.append({'features':'configured_geographic_features',**regression_metrics(test.target,prediction)})
     pd.DataFrame(comparison).to_csv(output/'feature_comparison.csv',index=False)
@@ -68,6 +75,8 @@ def train_variant(data,config,output):
     final_parameters=dict(parameters);final_parameters.pop('early_stopping_rounds',None);final_parameters['n_estimators']=best
     final_model=build_regressor(final_parameters);final_model.fit(xall,data.target,verbose=False)
     final_model.save_model(output/'model.json');joblib.dump(final_preprocessor,output/'preprocessor.joblib')
+    save_model_reports(final_model,final_preprocessor,numeric,categorical,data.target,output,
+                       'Unit weight gamma (kN/m³)',population='all-data final fitting records',density_gravity=config['gravity_m_s2'])
     importance=pd.DataFrame({'feature':final_preprocessor.get_feature_names_out(),'importance':final_model.feature_importances_}).sort_values('importance',ascending=False)
     importance.to_csv(output/'feature_importance.csv',index=False)
     fig,ax=plt.subplots(figsize=(6,5))

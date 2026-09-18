@@ -1,1 +1,1 @@
-cは変換方法の検討中のため一時保留です。実装時にc固有の設定をこのディレクトリへ追加します。
+モデルAの説明変数はmodel.jsonc、予測はprediction.json、評価はvalidation.json、上流N値推定はn_estimation.jsonで指定します。最新の説明はdocs/soil_predictors.mdを参照してください。

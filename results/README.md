@@ -6,7 +6,7 @@
 - γ：gamma/latest.jsonのrunが最後の完了実行IDです。
   gamma/runs/<実行ID>/grid/に図と数値、models/wet/・models/dry/にモデルと評価があります。
 - 試験地点図：test_locations/。
-- c：実装待ち。
+- c：model_A/latest.jsonの実行IDを参照。c/model_A/runs/<実行ID>/grid/が有効粘着力の分布、model/がモデルです。
 - archive/legacy_output/：統合前の観測値の図・集計。現在の予測結果とは区別してください。
 
 全体の状態はrun_summary.jsonを確認します。
