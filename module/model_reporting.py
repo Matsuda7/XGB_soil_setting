@@ -6,6 +6,27 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
+def depth_scatter(ax, observed, predicted, depths=None, **kwargs):
+    """Color comparison points by depth in metres, retaining missing depths."""
+    observed = np.asarray(observed)
+    predicted = np.asarray(predicted)
+    if depths is None:
+        depths = np.full(len(observed), np.nan)
+    depths = pd.to_numeric(pd.Series(depths), errors='coerce').to_numpy(dtype=float)
+    finite = np.isfinite(depths)
+    if (~finite).any():
+        ax.scatter(observed[~finite], predicted[~finite], color='0.6',
+                   label='Depth unknown', **kwargs)
+        ax.legend(loc='lower right')
+    if finite.any():
+        points = ax.scatter(observed[finite], predicted[finite], c=depths[finite],
+                            cmap='viridis', **kwargs)
+        colorbar = ax.figure.colorbar(points, ax=ax, pad=0.02)
+        colorbar.set_label('Depth (m)')
+        # Keep the scale legible even when dense point clouds use low alpha.
+        colorbar.solids.set_alpha(1)
+
+
 def original_feature(name,numeric,categorical):
     raw=str(name).split('__',1)[-1]
     if raw in numeric: return raw

@@ -1,0 +1,92 @@
+{
+  "input": "gamma_test/routed_models/augmented.csv",
+  "stage1_settings": "gamma_test/routed_models/settings.json",
+  "solphyj_features": "gamma_test/solphyj_representative_soil/gamma_teacher_with_solphyj_representatives.csv",
+  "baseline_output": "gamma_test/stage2_baseline_borehole",
+  "terrain_output": "gamma_test/stage2_terrain_borehole",
+  "geology_output": "gamma_test/stage2_geology_borehole",
+  "output": "gamma_test/stage2_integrated_borehole",
+  "split_seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "test_size": 0.2,
+  "validation_size": 0.2,
+  "stage1_inner_validation_size": 0.2,
+  "sample_weight": 1.0,
+  "models": {
+    "F0": {
+      "numeric": [
+        "x",
+        "y",
+        "elevation"
+      ],
+      "categorical": []
+    },
+    "F1": {
+      "numeric": [
+        "x",
+        "y",
+        "elevation",
+        "slope",
+        "curvature"
+      ],
+      "categorical": []
+    },
+    "F2": {
+      "numeric": [
+        "x",
+        "y",
+        "elevation"
+      ],
+      "categorical": [
+        "geology"
+      ]
+    },
+    "F3": {
+      "numeric": [
+        "x",
+        "y",
+        "elevation",
+        "representative_total_sand",
+        "representative_silt",
+        "representative_clay"
+      ],
+      "categorical": []
+    },
+    "F4": {
+      "numeric": [
+        "x",
+        "y",
+        "elevation",
+        "slope",
+        "curvature",
+        "representative_total_sand",
+        "representative_silt",
+        "representative_clay"
+      ],
+      "categorical": [
+        "geology"
+      ]
+    }
+  },
+  "xgb_parameters": {
+    "objective": "reg:squarederror",
+    "n_estimators": 1500,
+    "learning_rate": 0.03,
+    "max_depth": 7,
+    "min_child_weight": 3,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "reg_alpha": 0.05,
+    "reg_lambda": 1.0,
+    "random_state": 42,
+    "n_jobs": 4,
+    "tree_method": "hist",
+    "eval_metric": "rmse",
+    "early_stopping_rounds": 75
+  }
+}

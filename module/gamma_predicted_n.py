@@ -1,12 +1,13 @@
 """Refit the selected predicted-N condition for full-grid deployment."""
 import json
+from module.gamma_config import selected_kinds
 import joblib
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import GroupKFold
 from module.paths import TRAINING
 from module.gamma_features import model_frame
-from module.n_estimation import fit_predict, exclude_queries, spatial_keys, predict_ensemble
+from module.n_estimation import fit_predict, exclude_queries, predict_ensemble
 from module.model_reporting import save_model_reports
 from module.xgb_common import build_preprocessor, build_regressor
 
@@ -18,13 +19,13 @@ def train_selected(config, run):
     required={'n_measured','comparison_hole_id','surface_z','depth','gamma_wet','gamma_dry'}
     if required-set(frame):
         raise ValueError('Rerun gamma preparation before predicted_n deployment')
-    frame=frame.loc[frame.n_measured.notna() & frame[['gamma_wet','gamma_dry']].notna().any(axis=1)].copy()
+    frame=frame.loc[frame.n_measured.notna() & frame[['gamma_'+kind for kind in selected_kinds(config)]].notna().any(axis=1)].copy()
     if frame.empty: raise ValueError('No primary density samples for predicted_n deployment')
     frame['boring_id']=frame.comparison_hole_id
     frame['n_value_elevation']=frame.surface_z-frame.depth
     spt=pd.read_csv(TRAINING/'gamma/n_spt.csv')
     numeric=options['numeric_features'];categorical=options['categorical_features']
-    groups=spatial_keys(frame,validation['block_size_m']) if mode=='spatial' else frame.boring_id
+    groups=frame.boring_id
     folds=min(options['cross_fit_folds'],groups.nunique())
     if folds<2: raise ValueError('Too few primary groups for final gamma cross-fitting')
     predicted=[]
@@ -34,11 +35,11 @@ def train_selected(config, run):
         predicted.append(fit_predict(source,query,validation,options,numeric,categorical,
                                     options['xgb_parameters'],run/f'n_models/refit_fold_{fold}'))
     data=pd.concat(predicted,ignore_index=True)
-    data['n_input']=data.n_predicted
+    data['n_value']=data.n_predicted
     data.to_csv(run/'final_training_n_features.csv',index=False)
     result={}
-    features=[*config['numeric_features'],'n_input']
-    for kind in ('wet','dry'):
+    features=[*config['numeric_features'],'n_value']
+    for kind in selected_kinds(config):
         # Tree count comes from the primary-mode validation, never from test R².
         evaluation_path=run/f'n_comparison/{mode}/{kind}/predicted_n/metrics.json'
         evaluation=json.loads(evaluation_path.read_text())
@@ -91,8 +92,8 @@ def add_predicted_n(frame,artifact):
     samples=predict_ensemble(models,transform,frame,metrics['numeric_features'],metrics['categorical_features'])
     if not np.isfinite(samples).all():
         raise ValueError('Non-finite N predictions; gamma inference stopped')
-    frame['n_input']=samples.mean(axis=0)
+    frame['n_value']=samples.mean(axis=0)
     frame['n_ensemble_std']=samples.std(axis=0,ddof=1)
-    frame['n_lower']=np.clip(frame.n_input-metrics['interval_radius'],0.,50.)
-    frame['n_upper']=np.clip(frame.n_input+metrics['interval_radius'],0.,50.)
+    frame['n_lower']=np.clip(frame.n_value-metrics['interval_radius'],0.,50.)
+    frame['n_upper']=np.clip(frame.n_value+metrics['interval_radius'],0.,50.)
     return frame

@@ -49,6 +49,6 @@ class ExclusionTests(unittest.TestCase):
         kept=exclude_queries(self.spt,self.heldout,{'mode':'borehole'},.01)
         self.assertEqual(set(kept.boring_id),{'nearby','far'})
 
-    def test_spatial_exclusion_removes_all_holes_in_test_block(self):
-        kept=exclude_queries(self.spt,self.heldout,{'mode':'spatial','block_size_m':1000.},.01)
-        self.assertEqual(set(kept.boring_id),{'far'})
+    def test_nearby_holes_are_retained(self):
+        kept=exclude_queries(self.spt,self.heldout,{'mode':'borehole'},.01)
+        self.assertIn('nearby',set(kept.boring_id))

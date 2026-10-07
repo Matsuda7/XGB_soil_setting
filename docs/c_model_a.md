@@ -22,13 +22,13 @@ SOILTESTLISTの標準XMLであることを確認して、shear_strength_effectiv
 
 ## 説明変数と領域
 
-config/c/model.jsoncで、x、y、sample_z、slope、curvature、jshis_avs30、symbol、jshis_jcode、n_inputを指定します。
-sample_zは学習時にDEM標高−試料中央深度、予測時にDEM標高−指定深度です。
+config/c/model.jsoncで、x、y、elevation、slope、curvature、jshis_avs30、symbol、jshis_jcode、n_valueを指定します。
+elevationは学習時にDEM標高−試料中央深度、予測時にDEM標高−指定深度です。
 地表標高・深度・ARVはcの直接の説明変数に入れません。
-n_inputは上流N値モデルの推定値です。上流モデルのみconfig/phi/model.jsoncを共用します。
+n_valueは上流N値モデルの推定値です。上流モデルのみconfig/phi/model.jsoncを共用します。
 実測N値が同じ位置にないc試料も、予測N値を使って学習します。N値の直接対応有無でc試料を限定しません。
 cの評価孔・地域は上流N値モデルからも除外し、学習側N値も交差適合で生成します。
-学習表のn_inputは前処理時は空欄とし、分割後に学習・評価ごとに生成した値を保存します。
+学習表のn_valueは前処理時は空欄とし、分割後に学習・評価ごとに生成した値を保存します。
 詳細は[最新の説明変数](soil_predictors.md)を参照してください。
 config/spatial.jsonをφ・γと共用し、同じ領域・10m格子・prop非0を予測します。
 config/c/prediction.jsonで深度を指定できます（初期値1m）。画像の表示間隔は100m、数値格子は10mです。
@@ -46,9 +46,9 @@ config/c/validation.jsonで孔単位・空間評価を切り替えます。
 - data/training/c/model_A/model_dataset.csv：学習表、元項目・試験種別・元XMLを保持
 - data/training/c/model_A/excluded_records.csv：除外記録
 - data/training/c/model_A/preparation_summary.json：採用件数・孔数・目的値範囲・出典
-- results/c/model_A/runs/<実行ID>/evaluation/：孔単位・空間評価
+- results/YYYYMMDD/c/evaluation/：孔単位・空間評価
 - 同model/：最終モデル・前処理・重要度・評価への参照
 - 同grid/：c_effective.png、c_effective_kpa.npy、圧縮CSVチャンク
-- results/c/model_A/latest.json：最後に完了した実行
+- results/YYYYMMDD/c/run_summary.json：当該実行の状態
 
 単位はkPa（kN/m²と同じ）。図は英語タイトルで、正式な平面直角座標系の軸名に従い横Y・縦X、単位m。

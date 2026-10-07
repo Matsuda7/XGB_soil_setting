@@ -1,8 +1,7 @@
 """Model A: effective cohesion c' from CU-bar/CD, using the N-model predictors."""
 import json
-import tempfile
-from datetime import datetime, timezone
 from pathlib import Path
+from module.output_layout import create_target_directory
 import joblib
 import numpy as np
 import pandas as pd
@@ -23,14 +22,14 @@ def load_config():
     if config['spatial']['grid_crs'] != 'EPSG:6675':
         raise ValueError('Model A currently requires Japan Plane Rectangular CS VII (EPSG:6675)')
     config['numeric_features'],config['categorical_features']=load_model_config(project_path(config['model_config']))
-    allowed={'n_input','x','y','surface_z','depth','sample_z','n_value_elevation','jshis_avs30','jshis_arv','slope','curvature','dem_missing'}
+    allowed={'n_value','x','y','surface_z','depth','elevation','n_value_elevation','jshis_avs30','jshis_arv','slope','curvature','dem_missing'}
     if set(config['numeric_features'])-allowed or set(config['categorical_features'])-{'symbol','ser','jshis_jcode'}:
         raise ValueError('Model A currently supports geographic N-model features only; target-derived RBF is not implemented')
     config['validation']=validate_config(json.loads(project_path(config['validation_config']).read_text()))
     from module.n_comparison_config import load_options
     config['n_comparison'] = load_options(config['n_estimation_config'])
-    if 'n_input' in config['numeric_features'] and (not config['n_comparison']['enabled'] or config['validation']['mode']=='row'):
-        raise ValueError('Model A n_input requires enabled N estimation and borehole/spatial validation')
+    if 'n_value' in config['numeric_features'] and (not config['n_comparison']['enabled'] or config['validation']['mode']=='row'):
+        raise ValueError('Model A n_value requires enabled N estimation and borehole/spatial validation')
     from module.phi_training import XGB_PARAMETERS
     config['xgb_parameters']=dict(XGB_PARAMETERS,**config.get('xgb_parameters',{}))
     if not isinstance(config.get('write_text_matrix',True),bool):
@@ -112,11 +111,11 @@ def prepare(raw=None):
     geology,jshis=geographic_context(config,frame)
     frame=enrich(frame,config,dem,geology,jshis)
     frame['n_value_elevation']=frame.surface_z-frame.depth
-    if 'n_input' in config['numeric_features']:
+    if 'n_value' in config['numeric_features']:
         from module.n_matching import prepare_n_data
         frame = prepare_n_data(frame,config,output,dem,geology,jshis)
         # Populate separately within each split; never use an in-sample global N feature.
-        frame['n_input'] = np.nan
+        frame['n_value'] = np.nan
     frame['source_boring_id']=frame.boring_id
     frame['boring_id']=location_groups(frame,.01)
     frame.to_csv(output/'model_dataset.csv',index=False)
@@ -135,14 +134,15 @@ def evaluate(data,config,output,mode,scenario="predicted_n",parts=None):
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
+from module.model_reporting import depth_scatter
     output.mkdir(parents=True,exist_ok=True)
     if parts is None:
         parts=split_data(data,dict(config['validation'],mode=mode),target_column='target')
     if scenario == 'measured_n':
-        parts=tuple(part.assign(n_input=part.n_measured) for part in parts)
+        parts=tuple(part.assign(n_value=part.n_measured) for part in parts)
     elif scenario != 'predicted_n':
         raise ValueError(f'Unsupported c N comparison scenario: {scenario}')
-    elif 'n_input' in config['numeric_features']:
+    elif 'n_value' in config['numeric_features']:
         from module.n_feature_pipeline import evaluation_features
         spt = pd.read_csv(TRAINING/'c/model_A/n_spt.csv')
         parts = evaluation_features(parts,spt,config,output/'n_models',dict(config['validation'],mode=mode))
@@ -159,7 +159,7 @@ def evaluate(data,config,output,mode,scenario="predicted_n",parts=None):
              'holes':{k:int(p.boring_id.nunique()) for k,p in zip(('train','validation','test'),parts)},
              'unit':'kPa','prediction_lower_bound':0.}
     (output/'metrics.json').write_text(json.dumps(metrics,indent=2)+'\n')
-    fig,ax=plt.subplots(figsize=(6,5));ax.scatter(test.target,predicted,s=20,alpha=.7)
+    fig,ax=plt.subplots(figsize=(6,5));depth_scatter(ax,test.target,predicted,test.get('depth'),s=20,alpha=.7)
     high=max(float(test.target.max()),float(predicted.max()),1.)
     ax.plot([0,high],[0,high],'k--',lw=1)
     ax.set(xlabel="Observed effective cohesion c' (kPa)",ylabel="Predicted effective cohesion c' (kPa)",title=f'Model A ({mode})')
@@ -170,7 +170,7 @@ def evaluate(data,config,output,mode,scenario="predicted_n",parts=None):
 
 def compare_n_conditions(data,config,output,mode):
     """Compare N inputs on identical measured-N-matched samples and splits."""
-    if 'n_input' not in config['numeric_features']:
+    if 'n_value' not in config['numeric_features']:
         return evaluate(data,config,output,mode)
     common=data.loc[data.n_measured.notna()].copy()
     parts=split_data(common,dict(config['validation'],mode=mode),target_column='target')
@@ -190,8 +190,9 @@ def compare_n_conditions(data,config,output,mode):
 
 
 def distribute():
-    config=load_config();base=project_path(config['output_dir']);runs=base/'runs';runs.mkdir(parents=True,exist_ok=True)
-    run=Path(tempfile.mkdtemp(prefix=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ_'),dir=runs))
+    config = load_config()
+    run = create_target_directory('c')
+    config['output_dir'] = str(run)
     (run/'config.json').write_text(json.dumps(config,indent=2)+'\n')
     status={'status':'running','model':'A','run':run.name,'target':"effective cohesion c'",'unit':'kPa'}
     try:
@@ -200,10 +201,8 @@ def distribute():
         data=pd.read_csv(TRAINING/'c/model_A/model_dataset.csv')
         (run/'preparation_summary.json').write_text(json.dumps(preparation,indent=2)+'\n')
         mode=config['validation']['mode'];primary=compare_n_conditions(data,config,run/'evaluation'/mode,mode)
-        if config['validation']['additional_spatial'] and mode!='spatial':
-            compare_n_conditions(data,config,run/'evaluation/spatial','spatial')
         n_artifact = None
-        if 'n_input' in config['numeric_features']:
+        if 'n_value' in config['numeric_features']:
             from module.n_feature_pipeline import crossfit_features, fit_grid_artifact
             spt = pd.read_csv(TRAINING/'c/model_A/n_spt.csv')
             data = crossfit_features(data,spt,config,run/'n_models/refit')
@@ -227,8 +226,13 @@ def distribute():
         pd.DataFrame({'feature':transform.get_feature_names_out(),'importance':model.feature_importances_}).sort_values('importance',ascending=False).to_csv(output/'feature_importance.csv',index=False)
         import shutil
         evaluation_output=run/'evaluation'/mode
-        if 'n_input' in numeric: evaluation_output=evaluation_output/'predicted_n'
-        shutil.copyfile(evaluation_output/'observed_vs_predicted.png',output/'observed_vs_predicted.png')
+        if 'n_value' in numeric: evaluation_output=evaluation_output/'predicted_n'
+        shutil.copyfile(evaluation_output/'observed_vs_predicted.png',output/'observed_vs_predicted_test.png')
+        shutil.copyfile(evaluation_output/'test_predictions.csv',output/'test_predictions.csv')
+        from module.all_observed_reporting import save_all_observed
+        metrics['all_observed'] = save_all_observed(
+            data, np.maximum(model.predict(x), 0.), 'target', 'predicted_c_kpa', output,
+            'observed_vs_predicted.png', "effective cohesion c' [kPa]")
         from module.c_prediction import predict_grid
         status.update(predict_grid(config,model,transform,metrics,run/'grid',n_artifact=n_artifact))
     except Exception as error:
@@ -236,6 +240,4 @@ def distribute():
         (run/'run_summary.json').write_text(json.dumps(status,indent=2)+'\n')
         raise
     (run/'run_summary.json').write_text(json.dumps(status,indent=2)+'\n')
-    if status['status']=='complete':
-        temporary=base/'latest.json.tmp';temporary.write_text(json.dumps(status,indent=2)+'\n');temporary.replace(base/'latest.json')
     return {**status,'output':str(run)}

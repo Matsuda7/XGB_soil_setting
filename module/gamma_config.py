@@ -5,8 +5,16 @@ from module.paths import CONFIG, project_path
 from module.xgb_common import load_model_config
 
 KINDS = ('wet', 'dry')
-NUMERIC = {'n_input','x','y','depth','surface_z','sample_z','slope','curvature','jshis_avs30','jshis_arv','dem_missing'}
-CATEGORICAL = {'symbol','jshis_jcode','ser'}
+NUMERIC = {'n_value_elevation','n_value','x','y','depth','surface_z','elevation','slope','curvature','jshis_avs30','jshis_arv','dem_missing'}
+CATEGORICAL = {'symbol','jshis_jcode','ser','soil_inventory_ssg'}
+
+
+def selected_kinds(config):
+    """Select exactly one gamma target; older configs default to wet."""
+    kind = config.get('gamma_kind', 'wet')
+    if kind not in KINDS:
+        raise ValueError('gamma_kind must be wet or dry')
+    return (kind,)
 
 
 def grid_shape(spatial):
@@ -22,6 +30,7 @@ def grid_shape(spatial):
 
 def load_config(path=None):
     config = json.loads(project_path(path or CONFIG/'gamma/prediction.json').read_text(encoding='utf-8'))
+    config['gamma_kind'] = selected_kinds(config)[0]
     from module.n_comparison_config import load_options
     config['n_comparison'] = load_options(config['n_comparison_config'])
     selected = config.get('distribution_model', 'no_n')
@@ -33,7 +42,7 @@ def load_config(path=None):
     if not isinstance(config.get('create_distribution'), bool):
         raise ValueError('create_distribution must be boolean')
     if config['n_comparison']['enabled'] and config['validation']['mode'] == 'row':
-        raise ValueError('N comparison requires borehole/spatial validation; disable N comparison to use row validation')
+        raise ValueError('N comparison requires borehole validation; disable N comparison to use row validation')
     from module.validation import validate_config
     validate_config(config['validation'])
     depth = config['prediction_depth_m']
@@ -57,9 +66,9 @@ def load_config(path=None):
     numeric, categorical = load_model_config(project_path(config['model_config']))
     if set(numeric)-NUMERIC or set(categorical)-CATEGORICAL:
         raise ValueError('Gamma features must be available at prediction grid points; density and laboratory properties are not allowed')
-    # no-N comparison conditions remove n_input; predicted-N conditions add it once.
+    # no-N comparison conditions remove n_value; predicted-N conditions add it once.
     config['declared_numeric_features'] = numeric
-    config['numeric_features'], config['categorical_features'] = [n for n in numeric if n != 'n_input'], categorical
+    config['numeric_features'], config['categorical_features'] = [n for n in numeric if n != 'n_value'], categorical
     config['spatial'] = spatial
     return config
 

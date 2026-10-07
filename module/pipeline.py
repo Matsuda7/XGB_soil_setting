@@ -21,9 +21,17 @@ def resolve_targets(config, override=None):
     return tuple(dict.fromkeys(selected))
 
 
-def run(stage='all', targets=None, config_path=CONFIG / 'pipeline.json', download=False):
+def run(stage='all', targets=None, config_path=CONFIG / 'pipeline.json', download=False, gamma_kind=None):
+    from module.output_layout import output_session
+    with output_session(RESULTS):
+        return _run(stage, targets, config_path, download, gamma_kind)
+
+
+def _run(stage, targets, config_path, download, gamma_kind):
     config = json.loads(project_path(config_path).read_text(encoding='utf-8'))
     targets = resolve_targets(config, targets)
+    if gamma_kind is not None and gamma_kind not in ('wet', 'dry'):
+        raise ValueError('gamma_kind must be wet or dry')
     stages = STAGES if stage == 'all' else (stage,)
     report = {'started_at': datetime.now(timezone.utc).isoformat(), 'stages': {}, 'targets': list(targets)}
     failed = False
@@ -82,7 +90,7 @@ def run(stage='all', targets=None, config_path=CONFIG / 'pipeline.json', downloa
                     entries[target] = {'status': 'blocked', 'reason': 'Preparation did not succeed'}
                 else:
                     try:
-                        entries[target] = distribute(target)
+                        entries[target] = distribute(target, gamma_kind=gamma_kind) if target == 'gamma' and gamma_kind is not None else distribute(target)
                     except Exception as error:
                         entries[target] = {'status': 'failed', 'error': str(error)}
                         traceback.print_exc()
@@ -95,8 +103,10 @@ def run(stage='all', targets=None, config_path=CONFIG / 'pipeline.json', downloa
             for target, entry in entries.items():
                 print(f"  {target}: {entry['status']}", flush=True)
     report['status'] = 'incomplete' if failed else 'complete'
-    RESULTS.mkdir(parents=True, exist_ok=True)
-    destination = RESULTS / 'run_summary.json'
+    from module.output_layout import current_directory
+    directory = current_directory()
+    directory.mkdir(parents=True, exist_ok=True)
+    destination = directory / 'run_summary.json'
     temporary = destination.with_suffix('.tmp')
     temporary.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     temporary.replace(destination)
@@ -108,6 +118,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--stage', choices=['all', *STAGES], default='all')
     parser.add_argument('--targets', choices=TARGETS, nargs='+', default=None, help='Override config targets (c, phi, gamma)')
+    parser.add_argument('--gamma-kind', choices=('wet', 'dry'), help='Gamma target: wet (湿潤) or dry (乾燥); defaults to config/gamma/prediction.json')
     parser.add_argument('--config', default=str(CONFIG / 'pipeline.json'))
     parser.add_argument('--download', action='store_true', help='Refresh soil-test XML from KuniJiban during collection')
     parser.add_argument('--plan', action='store_true', help='Show stages and missing inputs without executing analysis')
@@ -125,4 +136,6 @@ def main(argv=None):
                                           'distribution_implemented': t in ('c', 'phi', 'gamma')} for t in targets}},
                          ensure_ascii=False, indent=2))
         return 0
+    if args.gamma_kind is not None:
+        return run(args.stage, targets, args.config, args.download, gamma_kind=args.gamma_kind)
     return run(args.stage, targets, args.config, args.download)

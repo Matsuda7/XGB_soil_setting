@@ -2,11 +2,11 @@
   "numeric_features": [
     "x",
     "y",
-    "sample_z",
+    "elevation",
     "slope",
     "curvature",
     "jshis_avs30",
-    "n_input"
+    "n_value"
   ],
   "categorical_features": [
     "symbol",

@@ -56,7 +56,9 @@ def prepare(config=None, raw=None):
     frame.drop(columns=['_row'],errors='ignore').to_csv(output/'measurements.csv',index=False,encoding='utf-8-sig')
     pd.concat(rejected,ignore_index=True).to_csv(output/'excluded_records.csv',index=False,encoding='utf-8-sig')
     columns=['record_id','boring_id','xml_file','sample_id','sample_no','x','y','latitude','longitude','depth',
-             'surface_z','sample_z','slope','curvature','dem_missing','symbol','ser','jshis_jcode','jshis_avs30','jshis_arv']
+             'surface_z','elevation','slope','curvature','dem_missing','symbol','ser','jshis_jcode','jshis_avs30','jshis_arv']
+    # Include all configured predictors in the measured-target learning tables.
+    columns = list(dict.fromkeys([*columns, *config['numeric_features'], *config['categorical_features']]))
     if config['n_comparison']['enabled']:
         from module.n_matching import MATCH_COLUMNS
         columns += ['depth_top','depth_bottom','source_boring_id','comparison_hole_id',*MATCH_COLUMNS]

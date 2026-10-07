@@ -58,7 +58,7 @@ N値モデル内部では学習・木数調整・区間校正を分離します�
 
 ## 出力
 
-results/gamma/runs/<実行ID>/n_comparison/
+results/YYYYMMDD/gamma_wet/n_comparison/（乾燥はgamma_dry）
 - comparison.csv：孔単位・空間評価、乾燥・湿潤、各導入方法の一覧
 - summary.json：完了／データ不足等の状態
 - <mode>/train_n_features.csv等：分割別の推定N値・信頼性・元試料情報
@@ -68,7 +68,7 @@ results/gamma/runs/<実行ID>/n_comparison/
 - <mode>/<wet|dry>/models/：比較用γモデル（全データ再学習はしない）
 
 図・表には密度[g/cm³]の評価と単位体積重量[kN/m³]の評価を保存します。
-比較のみの実行は既存のgamma/latest.json（完成した分布）を変更しません。
+比較のみの実行も日付・種類ごとのディレクトリに保存します。同日の既存結果はarchive/へ退避します。
 分布モデルはconfig/gamma/prediction.jsonのdistribution_modelで明示指定します。現在はpredicted_nを採用しています。test精度から自動採用しません。
 cは一時保留。N値導入比較とpredicted_nの全域分布への接続を実装しました（変更後の実行は未実施）。
 
@@ -81,7 +81,7 @@ config/gamma/prediction.jsonのdistribution_modelをpredicted_nに設定しま�
 N値モデルはφの特徴量設定・パラメータ・複数seedの平均・上限50を使用します。
 全域予測用N値モデルも校正データを学習から外し、同モデルの校正区間を保存します。
 格子点では指定深度のN値→γ→密度の順に計算します。圧縮CSVにはN値・モデル間標準偏差・区間・γ・密度を保存します。
-Nモデルはn_models/grid/、γモデルはmodels/wet・dry/、分布はgrid/へ保存します。
+Nモデルはn_models/grid/、γモデルは選択した側のmodels/wet/またはmodels/dry/、分布はgrid/へ保存します。
 modelsの散布図は評価用モデルの結果です。全主要データで再学習したモデルの独立評価ではありません。
 既存のgridは更新されません。次回実行で新しい実行IDに結果を保存します。
 今後の改良で今回のtestを繰り返し選択に使う場合、最終性能は別の独立評価で確認します。

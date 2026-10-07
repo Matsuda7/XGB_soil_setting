@@ -11,7 +11,7 @@ python run_analysis.py
         ├─ 1. collect     元データ収集・配置・不足確認
         ├─ 2. prepare     共通前処理、c・φ・γの学習用データ整理
         ├─ 3. distribute  各モデルの学習・分布作成
-        └─ results/      結果と run_summary.json
+        └─ results/YYYYMMDD/  対象ごとの結果と run_summary.json
 ```
 
 処理は順番に実行します。c・γ共通のXML抽出は1回です。
@@ -40,7 +40,7 @@ module/                       # 関数・共通処理（解析の本体）
   xgb_common.py               # 孔単位分割・前処理・評価・XGBoost生成
   phi_training.py             # φ側の既存SPTモデル学習
   phi_prediction.py           # 格子予測とφ換算・描画
-  terrain.py / bedrock.py     # 地形量・基盤標高RBF
+  terrain.py                  # DEMによる地形量
   distributions.py            # 各分布作成処理の呼び出し
   paths.py / pipeline.py      # パス定義・実行制御
 data/
@@ -59,11 +59,13 @@ data/
     gamma/wet.csv             # 湿潤γをtargetにした表
     gamma/dry.csv             # 乾燥γをtargetにした表
 results/
-  c/model_A/                  # 有効粘着力のモデル・評価・分布
-  phi/model/                  # モデル・評価
-  phi/grid_10m/               # φ・N値の格子分布
-  gamma/runs/                 # 乾燥・湿潤モデル、評価、分布図
-  run_summary.json            # 直近実行の各段階・対象別の状態
+  YYYYMMDD/                   # 実行開始日（日本時間）
+    c/                        # 有効粘着力のモデル・評価・分布
+    gamma_wet/                # 湿潤γを選択した場合
+    gamma_dry/                # 乾燥γを選択した場合
+    phi/                      # N値モデル・評価、φ分布
+    archive/                  # 同日に再実行した対象の過去結果
+    run_summary.json          # 統合コマンドの状態
 logs/
 tests/
 ```
@@ -78,7 +80,7 @@ python run_analysis.py --plan
 python run_analysis.py
 ```
 
-出力対象は `config/pipeline.json` の `targets` で指定します。現在の設定はc（モデルA）のみです。
+出力対象は `config/pipeline.json` の `targets` で指定します。現在の設定はc（モデルA）・gamma・phiです。
 既存の `sources`・`soiltest_bbox` はそのままにして、この項目だけ編集してください。
 
 ```json
@@ -167,7 +169,7 @@ python -m unittest -v test_extract_strength.py
 ```
 
 旧互換入口 download_kunijiban.py・extract_strength.py・make_distributions.py・shared_data.py は削除しました。本体は module/ に集約し、テストも本体を直接参照します。
-直下の `output/` は廃止しました。旧抽出表・学習表は `data/`、旧図・集計は `results/archive/legacy_output/` に移動しています。
+直下の `output/` は廃止しました。過去の生成結果は削除済みです。新しい結果は `results/YYYYMMDD/` に保存します。
 
 ## φ予測の再実行
 
@@ -216,13 +218,13 @@ propの範囲外は全体で24地点。試料深度別の試験は同じ孔・�
 説明変数は `config/gamma/model.jsonc` の x, y, depth, surface_z, slope,
 curvature, jshis_avs30, symbol, jshis_jcode。N値は使用しません。
 `config/gamma/prediction.json` の prediction_depth_m（初期値1m）を変更できます。
-湿潤・乾燥密度[g/cm³]を9.80665倍して単位体積重量[kN/m³]に変換し、別々に学習します。
+湿潤・乾燥密度[g/cm³]を9.80665倍して単位体積重量[kN/m³]に変換し、`gamma_kind` で選んだ側だけ学習します。
 密度のみのXML試験も収集し、欠損・不正値・DEM範囲外の除外記録を残します。
-学習表は data/training/gamma/、モデルと結果は results/gamma/runs/実行ID/ に保存します。
-grid/gamma_wet.png・gamma_dry.png はpropの0/非0境界を重ねた分布図です。
+学習表は data/training/gamma/、モデルと結果は results/YYYYMMDD/gamma_wet/ または gamma_dry/ に保存します。
+選択した側の grid/gamma_wet.png または gamma_dry.png に、propの0/非0境界を重ねた分布図を出力します。
 数値は10m格子のnpyと圧縮CSV、図の表示間隔は初期値100mです。
 各実行は新規ディレクトリに保存し、既存結果を上書きしません。
-全格子の処理が完了した場合だけ latest.json を更新します。
+処理状態は対象ディレクトリ内の run_summary.json に保存します。
 乾燥γが湿潤γを上回る予測は補正せず、件数をprediction_summary.jsonに記録します。
 
 ## N値・γのvalidation切り替え
@@ -231,24 +233,16 @@ N値モデルは `config/phi/validation.json`、γは `config/gamma/prediction.j
 validation を編集します。
 
 ```json
-{"mode": "borehole", "additional_spatial": true,
- "block_size_m": 10000.0, "test_size": 0.2,
+{"mode": "borehole", "test_size": 0.2,
  "validation_size": 0.2, "random_state": 42}
 ```
 
 - mode=borehole：孔単位の分割。初期設定です。
-- mode=spatial：平面座標の格子ブロック単位の分割。全深度を同じ分割へ入れます。
 - mode=row：行単位。同じ孔が学習・評価に混在し得るため未知孔への評価とは区別します。
-- additional_spatial=false：追加の空間評価を実行しません。
-- mode=row、additional_spatial=false：孔単位・空間評価を両方無効にします（行単位評価は残ります）。
 
-空間ブロックの初期幅10kmは暫定値です。座標原点を基準に区切り、ブロックをランダムに
-学習・validation・testへ分ける単回holdoutです。連続した地域の除外やバッファ付きCVではありません。
 validation_sizeはtestを除いた残りに対する割合です。分割可能なグループが不足すれば停止します。
-追加の空間評価は別モデルで実施し、主評価の木数選択や最終モデルを変更しません。
 主評価のvalidationで木数を選び、その木数で全データに再学習します。
-空間評価はspatial_metrics.json・spatial_test_predictions.csvに保存します。
-無効化しても以前の評価ファイルは削除しません。現在のmetrics.jsonの設定を確認してください。
+空間検証は削除済みです。以前の評価ファイルは履歴として保持します。
 
 
 ## configの配置
@@ -300,3 +294,35 @@ CŪ・CD試験から有効粘着力c′を予測する[モデルA](docs/c_model
 ## 最新のc・γ説明変数
 
 c・γとも試料標高と推定N値を含む9変数に変更しました。[最新設定と標高の定義](docs/soil_predictors.md)を参照してください。旧説明変数の記述よりこちらを優先します。
+
+## γの湿潤・乾燥の選択
+
+`config/gamma/prediction.json` の `gamma_kind` を `"wet"`（湿潤、初期設定）または
+`"dry"`（乾燥）に設定します。N値比較・評価・モデル学習・分布作成は選択した側だけ実行します。
+共通の前処理では、再利用できるよう湿潤・乾燥両方の学習用CSVを作成します。
+実行時に上書きする場合は次のように指定します。
+
+```bash
+python run_analysis.py --targets gamma --gamma-kind wet
+python run_analysis.py --targets gamma --gamma-kind dry
+```
+
+c・φも含めて最初から実行する場合は `python run_analysis.py --gamma-kind wet` を使います。
+前処理済みなら `python 03_create_distributions.py --targets gamma --gamma-kind dry` で分布作成だけを実行できます。
+選択した種類は各実行の `config.json` と `run_summary.json` に記録されます。
+
+
+保存例とファイルの役割は [出力構成](docs/output_layout.md) を参照してください。
+基盤面の補間・図・テキスト・元点データの作成は廃止しました。
+
+## 深度を指定する二段階の湿潤γモデル
+
+深度を加えた第一段階B・C・Dの疑似γを用い、第二段階のF4_AVS_JCODEにも深度を追加する独立コマンドです。
+`config/gamma/stage2_distribution.json` の `prediction_depth_m` に地表からの深度（m）を指定します。
+
+```bash
+python -m module.gamma_stage2_distribution --stage all
+```
+
+学習済みモデルから別の深度の分布を出す場合は、設定を変更して `--stage predict` を指定します。
+説明変数・評価結果・出力先は [二段階γの深度指定分布](docs/gamma_stage2_distribution.md) を参照してください。

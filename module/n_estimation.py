@@ -13,12 +13,6 @@ RELIABILITY_COLUMNS = ['n_ensemble_std','n_interval_width','n_nearest_hole_dista
                        'n_nearby_hole_count','n_nearest_hole_depth_gap_m','n_depth_extrapolation']
 
 
-def spatial_keys(frame, size):
-    xy = frame.groupby('boring_id')[['x','y']].transform('median')
-    cells = np.floor(xy / size).astype('int64')
-    return cells.x.astype(str)+':'+cells.y.astype(str)
-
-
 def exclude_queries(spt, heldout, validation, tolerance):
     if heldout.empty:
         return spt.copy()
@@ -29,9 +23,6 @@ def exclude_queries(spt, heldout, validation, tolerance):
     if 'spt_boring_id' in heldout:
         excluded.update(heldout.spt_boring_id.dropna().astype(str))
     allowed = ~spt.boring_id.isin(excluded)
-    if validation['mode'] == 'spatial':
-        forbidden = set(spatial_keys(heldout, validation['block_size_m']))
-        allowed &= ~spatial_keys(spt, validation['block_size_m']).isin(forbidden)
     return spt.loc[allowed].copy()
 
 
@@ -46,7 +37,7 @@ def fit_predict(spt, query, validation, options, numeric, categorical, parameter
     spt = spt.copy()
     spt['source_boring_id'] = spt.boring_id
     spt['boring_id'] = location_groups(spt, options['xy_tolerance_m'])
-    internal = dict(validation, additional_spatial=False)
+    internal = dict(validation)
     train, tuning, calibration = split_data(spt, internal)
     save_split((train,tuning,calibration), output/'split.csv')
     spt[['source_boring_id','boring_id','x','y']].drop_duplicates().to_csv(output/'source_hole_groups.csv', index=False)

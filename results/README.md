@@ -1,13 +1,10 @@
 # 解析結果
 
-データ入力はdata/、解析結果はresults/、実行ログはlogs/へ保存します。直下のoutput/は廃止しました。
+解析結果は `results/YYYYMMDD/` に保存します（日付は実行開始時の日本時間）。
+その下の `c/`、`gamma_wet/` または `gamma_dry/`、`phi/` に図・二次元テキスト・モデル・評価結果をまとめます。
 
-- φ・N値の図：phi/grid_10m/。モデル・評価：phi/model/。
-- γ：gamma/latest.jsonのrunが最後の完了実行IDです。
-  gamma/runs/<実行ID>/grid/に図と数値、models/wet/・models/dry/にモデルと評価があります。
-- 試験地点図：test_locations/。
-- c：model_A/latest.jsonの実行IDを参照。c/model_A/runs/<実行ID>/grid/が有効粘着力の分布、model/がモデルです。
-- archive/legacy_output/：統合前の観測値の図・集計。現在の予測結果とは区別してください。
+gammaの種類は `config/gamma/prediction.json` の `gamma_kind`（wet/dry）で指定します。
+同日・同対象の再実行では既存結果を日付フォルダ内の `archive/` に退避します。
+各対象と日付フォルダの `run_summary.json` で処理状態を確認できます。
 
-全体の状態はrun_summary.jsonを確認します。
-詳細・移動一覧は[保存先の説明](../docs/output_layout.md)を参照してください。
+詳細は [保存先の説明](../docs/output_layout.md) を参照してください。

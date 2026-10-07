@@ -7,7 +7,6 @@
   "input_chunk_size": 100000,
   "display_spacing_m": 100.0,
   "write_text_matrix": true,
-  "output_dir": "results/c/model_A",
   "xgb_parameters": {},
   "n_estimation_config": "config/c/n_estimation.json",
   "exclude_outside_dem": true

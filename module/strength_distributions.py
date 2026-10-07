@@ -24,7 +24,7 @@ DENSITY_COLUMNS = {
 }
 MODEL_FEATURE_COLUMNS = [
     "boring_id", "xml_file", "latitude", "longitude", "surface_z",
-    "depth_top", "depth_bottom", "depth_mid", "sample_z", "sample_id", "sample_no",
+    "depth_top", "depth_bottom", "depth_mid", "elevation", "sample_id", "sample_no",
     "soil_name", "soil_code", "test_type", "test_condition_code",
     "particle_density", "water_content", "void_ratio", "degree_of_saturation",
     "gravel_fraction", "sand_fraction", "silt_fraction", "clay_fraction",
@@ -56,7 +56,7 @@ def create_distributions(input_path: Path, output_dir: Path, cohesion_column: st
     for label, source_column in DENSITY_COLUMNS.items():
         density = numeric_series(frame, source_column)
         gamma_column = f"gamma_{label}_kn_m3"
-        result_columns = [column for column in ["boring_id", "xml_file", "sample_id", "sample_no", "depth_mid", "sample_z", "latitude", "longitude", source_column] if column in frame]
+        result_columns = [column for column in ["boring_id", "xml_file", "sample_id", "sample_no", "depth_mid", "elevation", "latitude", "longitude", source_column] if column in frame]
         result = frame[result_columns].copy()
         result[gamma_column] = density * GRAVITY
         result = result.loc[density.notna()].copy()
@@ -107,7 +107,7 @@ def create_distributions(input_path: Path, output_dir: Path, cohesion_column: st
     cohesion_name = cohesion_column or "c_total"
     cohesion = numeric_series(frame, cohesion_name)
     if cohesion_column and cohesion.notna().any():
-        result = frame[[column for column in ["boring_id", "xml_file", "sample_id", "sample_no", "depth_mid", "sample_z", "latitude", "longitude", cohesion_name] if column in frame]].copy()
+        result = frame[[column for column in ["boring_id", "xml_file", "sample_id", "sample_no", "depth_mid", "elevation", "latitude", "longitude", cohesion_name] if column in frame]].copy()
         result = result.loc[cohesion.notna()].copy()
         result.to_csv(output_dir / "cohesion.csv", index=False, encoding="utf-8-sig")
         model_columns = [column for column in MODEL_FEATURE_COLUMNS if column in frame]
@@ -121,7 +121,7 @@ def create_distributions(input_path: Path, output_dir: Path, cohesion_column: st
     else:
         cohesion_columns = ["target", *MODEL_FEATURE_COLUMNS]
         pd.DataFrame(columns=cohesion_columns).to_csv(output_dir / "model_dataset_cohesion.csv", index=False, encoding="utf-8-sig")
-        pd.DataFrame(columns=["boring_id", "sample_id", "depth_mid", "sample_z", cohesion_name]).to_csv(output_dir / "cohesion.csv", index=False, encoding="utf-8-sig")
+        pd.DataFrame(columns=["boring_id", "sample_id", "depth_mid", "elevation", cohesion_name]).to_csv(output_dir / "cohesion.csv", index=False, encoding="utf-8-sig")
         status = "unavailable: current XML provides shear strength, not cohesion"
         count = 0
         minimum = maximum = mean = median = ""

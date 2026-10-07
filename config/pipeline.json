@@ -1,8 +1,6 @@
 {
   "targets": [
-    "c"
-    ,"gamma"
-    ,"phi"
+    "phi"
   ],
   "sources": [],
   "soiltest_bbox": "37.60,136.50,36.90,137.50"

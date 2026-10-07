@@ -1,0 +1,60 @@
+{
+  "input": "gamma_test/routed_models_depth/augmented.csv",
+  "stage1_settings": "gamma_test/routed_models_depth/settings.json",
+  "output": "gamma_test/stage2_f4_jshis_depth_borehole",
+  "numeric_features": [
+    "x",
+    "y",
+    "elevation",
+    "depth",
+    "slope",
+    "curvature",
+    "representative_total_sand",
+    "representative_silt",
+    "representative_clay",
+    "jshis_avs30"
+  ],
+  "categorical_features": [
+    "geology",
+    "jshis_jcode"
+  ],
+  "primary_validation": "borehole",
+  "validation_modes": [
+    "borehole"
+  ],
+  "split_seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "test_size": 0.2,
+  "validation_size": 0.2,
+  "stage1_inner_validation_size": 0.2,
+  "sample_weight": 1.0,
+  "xgb_parameters": {
+    "objective": "reg:squarederror",
+    "n_estimators": 1500,
+    "learning_rate": 0.03,
+    "max_depth": 7,
+    "min_child_weight": 3,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "reg_alpha": 0.05,
+    "reg_lambda": 1.0,
+    "random_state": 42,
+    "n_jobs": 4,
+    "tree_method": "hist",
+    "eval_metric": "rmse",
+    "early_stopping_rounds": 75
+  },
+  "spatial_config": "config/spatial.json",
+  "prediction_depth_m": 1.0,
+  "distribution_model": "F4_AVS_JCODE_depth",
+  "gravity_m_s2": 9.80665,
+  "input_chunk_size": 100000,
+  "display_spacing_m": 100.0,
+  "write_text_matrix": true,
+  "representative_properties": "gamma_test/solphyj_representative_soil/ssg_representative_properties.csv"
+}

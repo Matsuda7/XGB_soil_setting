@@ -3,13 +3,13 @@ import json
 import joblib
 import pandas as pd
 from sklearn.model_selection import GroupKFold
-from module.n_estimation import fit_predict, exclude_queries, spatial_keys
+from module.n_estimation import fit_predict, exclude_queries
 
 
 def crossfit_features(frame,spt,config,output,validation=None):
     options=config['n_comparison'];validation=validation or config['validation']
-    if validation['mode']=='row': raise ValueError('Predicted N features require borehole/spatial splitting')
-    groups=spatial_keys(frame,validation['block_size_m']) if validation['mode']=='spatial' else frame.boring_id
+    if validation['mode']=='row': raise ValueError('Predicted N features require borehole splitting')
+    groups=frame.boring_id
     folds=min(options['cross_fit_folds'],groups.nunique())
     if folds<2: raise ValueError('Too few groups for cross-fitted N features')
     result=[]
@@ -18,7 +18,7 @@ def crossfit_features(frame,spt,config,output,validation=None):
         source=exclude_queries(spt,query,validation,options['xy_tolerance_m'])
         values=fit_predict(source,query,validation,options,options['numeric_features'],options['categorical_features'],
                            options['xgb_parameters'],output/f'fold_{fold}')
-        values['n_input']=values.n_predicted;result.append(values)
+        values['n_value']=values.n_predicted;result.append(values)
     return pd.concat(result,ignore_index=True)
 
 
@@ -28,7 +28,7 @@ def evaluation_features(parts,spt,config,output,validation):
     source=exclude_queries(spt,heldout,validation,options['xy_tolerance_m'])
     predicted=fit_predict(source,heldout,validation,options,options['numeric_features'],options['categorical_features'],
                           options['xgb_parameters'],output/'heldout')
-    predicted['n_input']=predicted.n_predicted
+    predicted['n_value']=predicted.n_predicted
     val=predicted.loc[predicted.record_id.isin(val.record_id)].copy()
     test=predicted.loc[predicted.record_id.isin(test.record_id)].copy()
     train=crossfit_features(train,source,config,output/'training',validation)

@@ -6,7 +6,7 @@ from module.xgb_common import load_model_config
 
 SCENARIOS={'no_n','measured_n','measured_to_predicted_n','predicted_n',
            'predicted_n_reliability','measured_plus_supplemental','no_n_with_supplemental'}
-ALLOWED_NUMERIC={'x','y','depth','surface_z','sample_z','n_value_elevation',
+ALLOWED_NUMERIC={'x','y','depth','surface_z','elevation','n_value_elevation',
                  'slope','curvature','dem_missing','jshis_avs30','jshis_arv'}
 ALLOWED_CATEGORICAL={'symbol','ser','jshis_jcode'}
 

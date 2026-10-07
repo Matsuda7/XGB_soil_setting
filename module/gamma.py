@@ -1,20 +1,20 @@
-"""Run both gamma models in a unique directory and record explicit completion."""
+"""Run the selected gamma model in a unique directory and record explicit completion."""
 import json
-import tempfile
-from datetime import datetime,timezone
 from pathlib import Path
+from module.output_layout import create_target_directory
 from module.paths import project_path
-from module.gamma_config import load_config
+from module.gamma_config import load_config, selected_kinds
 from module.gamma_training import train_both
 from module.gamma_prediction import predict_grid
 
 
 def distribute(config=None,max_chunks=None):
     config=config or load_config()
-    output=project_path(config['output_dir']);runs=output/'runs';runs.mkdir(parents=True,exist_ok=True)
-    run=Path(tempfile.mkdtemp(prefix=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ_'),dir=runs))
+    kind = selected_kinds(config)[0]
+    run = create_target_directory('gamma_' + kind)
+    config['output_dir'] = str(run)
     (run/'config.json').write_text(json.dumps(config,ensure_ascii=False,indent=2)+'\n')
-    status={'status':'running','run':run.name,'prediction_depth_m':config['prediction_depth_m']}
+    status={'status':'running','gamma_kind':kind,'run':run.name,'prediction_depth_m':config['prediction_depth_m']}
     try:
         from module.paths import TRAINING
         from module.gamma_config import data_signature
@@ -47,6 +47,4 @@ def distribute(config=None,max_chunks=None):
         (run/'run_summary.json').write_text(json.dumps(status,ensure_ascii=False,indent=2)+'\n')
         raise
     (run/'run_summary.json').write_text(json.dumps(status,ensure_ascii=False,indent=2)+'\n')
-    if status['status']=='complete' and config['create_distribution']:
-        temporary=output/'latest.json.tmp';temporary.write_text(json.dumps(status,ensure_ascii=False,indent=2)+'\n');temporary.replace(output/'latest.json')
     return {**status,'output':str(run)}

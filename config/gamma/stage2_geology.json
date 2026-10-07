@@ -1,0 +1,43 @@
+{
+  "baseline_output": "gamma_test/stage2_baseline_borehole",
+  "output": "gamma_test/stage2_geology_borehole",
+  "baseline_model": "G0",
+  "custom_report": true,
+  "models": {
+    "G0": [
+      "x",
+      "y",
+      "elevation"
+    ],
+    "G1": [
+      "x",
+      "y",
+      "elevation"
+    ],
+    "G2": [
+      "x",
+      "y",
+      "elevation",
+      "curvature"
+    ],
+    "G3": [
+      "x",
+      "y",
+      "elevation",
+      "slope",
+      "curvature"
+    ]
+  },
+  "categorical_features": {
+    "G0": [],
+    "G1": [
+      "geology"
+    ],
+    "G2": [
+      "geology"
+    ],
+    "G3": [
+      "geology"
+    ]
+  }
+}

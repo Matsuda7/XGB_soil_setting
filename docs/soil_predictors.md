@@ -5,20 +5,20 @@
 | 列 | 意味 |
 |---|---|
 | x, y | 内部の平面座標（東西、南北） |
-| sample_z | 学習：DEM地表標高−試料中央深度。予測：DEM地表標高−設定深度 |
+| elevation | 学習：DEM地表標高−試料中央深度。予測：DEM地表標高−設定深度 |
 | slope | 傾斜 |
 | curvature | 曲率 |
 | jshis_avs30 | AVS30 |
 | symbol | 地質区分 |
 | jshis_jcode | 地形区分 |
-| n_input | 同じ試料標高／予測標高に対応する推定N値（上限50） |
+| n_value | 同じ試料標高／予測標高に対応する推定N値（上限50） |
 
 surface_z・depthは標高を計算するための補助列として保持し、c・γの説明変数には直接入力しません。
 現在の予測面の指定はprediction_depth_mです。一定標高面を直接指定する設定ではありません。
 cとγはそれぞれconfig/c/model.jsonc、config/gamma/model.jsoncで管理します。
 N値を推定する上流モデルは従来のconfig/phi/model.jsoncを使います。その説明変数は今回変更しません。
 
-γは従来どおり主要試料のみでpredicted_nを学習します。比較用no_n条件ではn_inputを外します。
+γは従来どおり主要試料のみでpredicted_nを学習します。比較用no_n条件ではn_valueを外します。
 cは有効粘着力が得られるCŪ・CD試料を使用し、実測N値との対応有無では学習対象を限定しません。
 cのN値モデル設定はconfig/c/n_estimation.jsonです。
 両者とも対象孔・地域を除いた推定N値を学習側に作成し、評価孔・地域は上流N値モデルからも除外します。

@@ -1,57 +1,65 @@
 # データと結果の保存先
 
-直下のoutput/は廃止しました。既存ファイルを移動し、解析・図の再生成は行っていません。
+入力・前処理データは `data/`、解析結果は `results/実行開始日/` に保存します。
+日付は日本時間の `YYYYMMDD` で、日付をまたいでも同じ統合実行の保存先は変わりません。
+
+```text
+results/
+  20260918/
+    c/
+      grid/                   # 分布図・二次元テキスト・格子値
+      model/                  # 学習モデル・重要度・評価図
+      evaluation/             # 孔単位・空間評価
+      n_models/               # N値モデル（使用する場合）
+      config.json
+      run_summary.json
+    gamma_wet/                # dry選択時はgamma_dry/
+      grid/                   # 分布図・二次元テキスト・格子値
+      models/wet/             # 選択した側のモデル・評価（dryならmodels/dry/）
+      n_comparison/           # N値条件比較・評価
+      n_models/               # N値モデル（使用する場合）
+      config.json
+      run_summary.json
+    phi/
+      grid/                   # N値・φ分布図、φ二次元テキスト、チャンク
+      model/                  # モデル・評価指標・評価図・重要度
+        evaluation/           # 孔単位・空間評価
+      config.json
+      run_summary.json
+    archive/                  # 同日の再実行前の対象ディレクトリを退避
+    run_summary.json           # 最後の統合コマンドの状態
+```
+
+`config/pipeline.json` の `targets` でc・gamma・phiを選びます。
+`config/gamma/prediction.json` の `gamma_kind` で `wet`（湿潤）または `dry`（乾燥）を選びます。
+gammaの比較・学習・分布は選択した側だけ実行します。共通前処理では両方の学習用CSVを作成します。
+`--gamma-kind` を指定した場合のみconfigの選択を上書きします。
+
+同じ日・同じ対象の再実行では、既存結果を `archive/<対象>_<時刻>_<識別子>/` へ移してから作成します。
+別の対象や湿潤・乾燥の結果は保持します。失敗時も当該対象の `run_summary.json` に状態を記録します。
+従来の `runs/`・`latest.json` は作成しません。基盤面作成は廃止しました。
+試験地点図を作る独立コマンドの保存先は `config/test_locations.json` で指定します。
+
+## 二次元テキスト
+
+- `c/grid/c_effective_kpa.txt.gz`：有効粘着力（kPa）
+- `gamma_wet/grid/gamma_wet.txt.gz`：湿潤単位体積重量（kN/m³）
+- `gamma_dry/grid/gamma_dry.txt.gz`：乾燥単位体積重量（kN/m³）
+- `phi/grid/phi_10m.txt.gz`：内部摩擦角（度）
+
+いずれも日付ディレクトリ以下のパスです。ヘッダーなし・空白区切り・小数点以下6桁のgzip圧縮行列です。
+全解像度（現在10 m）で、先頭行は南端、先頭列は西端です。行は北向き、列は東向きに増えます。
+`prop=0` のセルは0です。c・gammaの `.npy` は領域外をNaNで保持します。
+c・gammaのテキスト出力は各 `prediction.json` の `write_text_matrix` で切り替えます。
+
+## 元データと生成データ
 
 | 保存先 | 内容 |
 |---|---|
-| data/raw/ | ダウンロード・収集した元データ |
-| data/interim/ | 抽出表・加工途中のデータ |
-| data/training/ | 学習に入力するデータ |
-| data/cache/ | 再利用するキャッシュ |
-| results/phi/model/ | 現行のN値モデル・評価・重要度 |
-| results/phi/grid_10m/ | 現行のN値・φ分布図、格子値、チャンク |
-| results/gamma/runs/<実行ID>/models/wet・dry/ | 実行ごとのγモデル・評価 |
-| results/gamma/runs/<実行ID>/grid/ | 同じ実行のγ分布図・格子値・チャンク |
-| results/gamma/latest.json | 最後に完了したγ実行のIDと状態 |
-| results/test_locations/ | 試験地点図・地点一覧 |
-| results/c/model_A/ | 有効粘着力のモデル・評価・分布。latest.jsonとruns/で実行を管理 |
-| results/archive/ | 統合前などの過去結果。現行予測には使わない |
-| results/run_summary.json | 最後の統合コマンドの状態（対象はtargetsを確認） |
+| data/raw/ | 収集した元データ |
+| data/interim/ | 抽出表・加工途中データ |
+| data/training/ | 学習入力データ |
+| data/cache/ | 再利用キャッシュ |
 | logs/ | 実行ログ |
 
-γはlatest.jsonのrunに記載されたディレクトリを参照します。新規実行が失敗しても、
-latest.jsonは直前に完了した実行を指し続けます。φは従来の固定保存先を維持します。
-旧outputの図は観測試験値の可視化であり、現行XGBoostの予測分布ではありません。
-
-## 今回の移動一覧
-
-| 元の場所 | 移動先 |
-|---|---|
-| output/strength_data.csv | data/interim/legacy_output/strength_data.csv |
-| output/summary.csv | data/interim/legacy_output/summary.csv |
-| output/distributions/cohesion.csv | results/archive/legacy_output/distributions/cohesion.csv |
-| output/distributions/distribution_summary.csv | results/archive/legacy_output/distributions/distribution_summary.csv |
-| output/distributions/gamma_dry_kn_m3.csv | results/archive/legacy_output/distributions/gamma_dry_kn_m3.csv |
-| output/distributions/gamma_dry_kn_m3.png | results/archive/legacy_output/distributions/gamma_dry_kn_m3.png |
-| output/distributions/gamma_dry_kn_m3_map.png | results/archive/legacy_output/distributions/gamma_dry_kn_m3_map.png |
-| output/distributions/gamma_wet_kn_m3.csv | results/archive/legacy_output/distributions/gamma_wet_kn_m3.csv |
-| output/distributions/gamma_wet_kn_m3.png | results/archive/legacy_output/distributions/gamma_wet_kn_m3.png |
-| output/distributions/gamma_wet_kn_m3_map.png | results/archive/legacy_output/distributions/gamma_wet_kn_m3_map.png |
-| output/distributions/model_dataset_cohesion.csv | data/training/legacy_output/model_dataset_cohesion.csv |
-| output/distributions/model_dataset_dry_gamma.csv | data/training/legacy_output/model_dataset_dry_gamma.csv |
-| output/distributions/model_dataset_wet_gamma.csv | data/training/legacy_output/model_dataset_wet_gamma.csv |
-
-## c・γの二次元テキスト行列
-
-次回の分布予測が完了すると、以下も保存します。
-
-- `results/c/model_A/runs/<実行ID>/grid/c_effective_kpa.txt.gz`：有効粘着力（kPa）
-- `results/gamma/runs/<実行ID>/grid/gamma_wet.txt.gz`：湿潤単位体積重量（kN/m³）
-- `results/gamma/runs/<実行ID>/grid/gamma_dry.txt.gz`：乾燥単位体積重量（kN/m³）
-
-`phi/grid_10m/phi_10m.txt.gz` と同じく、ヘッダーなし・空白区切り・小数点以下6桁のgzip圧縮行列です。
-共有格子の全解像度（現在10 m）で、先頭行は南端、先頭列は西端です。行は北向き、列は東向きに増えます。
-`prop=0` のセルは0です。0は領域外と有効な予測値の両方で現れ得るため、区別にはpropを使用してください。
-既存の `.npy` は従来どおり領域外をNaNで保持します。未完了の予測ではテキスト行列を出力しません。
-各 `config/c/prediction.json`・`config/gamma/prediction.json` の `write_text_matrix` で出力を切り替えます（既定設定true）。
-既存結果は自動変換されません。
+2026-09-18に過去の生成結果、中間・学習データ、キャッシュ、ログを削除しました。元データと設定は保持しています。

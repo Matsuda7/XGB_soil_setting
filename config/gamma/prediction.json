@@ -1,4 +1,5 @@
 {
+  "gamma_kind": "wet",
   "spatial_config": "config/spatial.json",
   "model_config": "config/gamma/model.jsonc",
   "prediction_depth_m": 1.0,
@@ -8,7 +9,6 @@
   "input_chunk_size": 100000,
   "display_spacing_m": 100.0,
   "write_text_matrix": true,
-  "output_dir": "results/gamma",
   "xgb_parameters": {
     "objective": "reg:squarederror",
     "n_estimators": 1500,
@@ -28,13 +28,11 @@
   },
   "validation": {
     "mode": "borehole",
-    "additional_spatial": true,
-    "block_size_m": 10000.0,
     "test_size": 0.2,
     "validation_size": 0.2,
     "random_state": 42
   },
   "n_comparison_config": "config/gamma/n_comparison.json",
   "create_distribution": true,
-  "distribution_model": "predicted_n"
+  "distribution_model": "no_n"
 }

@@ -14,7 +14,7 @@ class IdentityTransform:
 
 class EchoNModel:
     def predict(self, frame):
-        return frame.n_input.to_numpy()
+        return frame.n_value.to_numpy()
 
 
 class PredictedNTests(unittest.TestCase):
@@ -26,7 +26,7 @@ class PredictedNTests(unittest.TestCase):
             return np.array([[10.],[20.],[30.]])
         with patch('module.gamma_predicted_n.predict_ensemble',side_effect=predict):
             result=add_predicted_n(frame,([],None,metrics))
-        self.assertEqual(result.n_input.iloc[0],20.)
+        self.assertEqual(result.n_value.iloc[0],20.)
         self.assertEqual(result.n_lower.iloc[0],16.)
         self.assertEqual(result.n_upper.iloc[0],24.)
 
@@ -34,11 +34,11 @@ class PredictedNTests(unittest.TestCase):
         config={'distribution_model':'predicted_n','gravity_m_s2':9.80665}
         points=pd.DataFrame({'x':[1.], 'y':[2.]})
         def enrich(frame,*args):
-            return frame.assign(surface_z=10.,sample_z=10.-frame.depth)
+            return frame.assign(surface_z=10.,elevation=10.-frame.depth)
         def add(frame,artifact):
             self.assertEqual(frame.depth.iloc[0],2.)
-            return frame.assign(n_input=25.,n_ensemble_std=1.,n_lower=20.,n_upper=30.)
-        metrics={'numeric_features':['n_input'],'categorical_features':[]}
+            return frame.assign(n_value=25.,n_ensemble_std=1.,n_lower=20.,n_upper=30.)
+        metrics={'numeric_features':['n_value'],'categorical_features':[]}
         models={kind:(EchoNModel(),IdentityTransform(),metrics) for kind in ('wet','dry')}
         with patch('module.gamma_prediction.enrich',side_effect=enrich), patch('module.gamma_predicted_n.add_predicted_n',side_effect=add):
             result=predict_points(points,2.,config,(None,None,None),models,n_artifact=object())

@@ -15,6 +15,7 @@ from typing import Sequence
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
 
 import geopandas as gpd
+from module.phi_output import artifact_directory
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,8 +25,8 @@ import xgboost as xgb
 from module.spatial_features import load_geology, find_jshis_csv, load_regional_jshis, meshcodes_250m, attach_spatial_attributes
 from module.prediction_output import prepare_chunk_output
 from module.terrain import load_or_create_dem_cache, sample_terrain_features
-from module.bedrock import FEATURE_COLUMN as BEDROCK_RBF_FEATURE
-from module.bedrock import interpolate_bedrock_rbf
+from module.solphyj_features import COLUMNS as SOLPHYJ_COLUMNS, attach_solphyj, load_lookup
+from module.solphyj_features import SOIL_CATEGORY, attach_soil_inventory, load_soil_lookup
 
 
 # Configuration
@@ -34,10 +35,6 @@ GEOLOGY_DIR = project_path("data/raw/geology/seamlessV2/")
 JSHIS_CSV_NAME = "Z-V4-JAPAN-AMP-VS400_M250.csv"
 JSHIS_DIR = project_path("data/raw/jshis/")
 MODEL_DATASET = project_path("data/training/phi/model_dataset.csv")
-MODEL_PATH = project_path("results/phi/model/xgb_spt_model.json")
-PREPROCESSOR_PATH = project_path("results/phi/model/xgb_preprocessor.joblib")
-METRICS_PATH = project_path("results/phi/model/metrics.json")
-BEDROCK_POINTS_PATH = project_path("data/training/phi/assumed_bedrock_points.csv")
 N_MIN = 0.0
 N_MAX = 50.0
 PHI_MAX_DEG = 40.0
@@ -45,12 +42,21 @@ JSHIS_COLUMNS = ["CODE", "JCODE", "AVS", "ARV", "AVS_EB", "AVS_REF"]
 LOGGER = logging.getLogger(__name__)
 
 
-def load_prediction_config(path: Path) -> dict:
+def load_prediction_config(path: Path, output_dir=None) -> dict:
     """Load and validate grid/prediction settings from JSON."""
     if not path.is_file():
         raise FileNotFoundError(f"Prediction configuration does not exist: {path}")
     from module.configuration import load_prediction_settings
     config = load_prediction_settings(path)
+    from module.output_layout import current_directory
+    output = Path(output_dir) if output_dir is not None else current_directory() / 'phi'
+    config.update({
+        'model_dir': output / 'model',
+        'output_chunk_dir': output / 'grid/chunks',
+        'n_value_plot': output / 'grid/N_value_10m.png',
+        'phi_plot': output / 'grid/phi_10m.png',
+        'phi_text': output / 'grid/phi_10m.txt.gz',
+    })
     required = {
         "grid_input",
         "dem_input",
@@ -66,8 +72,6 @@ def load_prediction_config(path: Path) -> dict:
         "output_chunk_dir",
         "n_value_plot",
         "phi_plot",
-        "bedrock_plot",
-        "bedrock_text",
     }
     missing = sorted(required - set(config))
     if missing:
@@ -79,8 +83,6 @@ def load_prediction_config(path: Path) -> dict:
     config["output_chunk_dir"] = project_path(config["output_chunk_dir"])
     config["n_value_plot"] = project_path(config["n_value_plot"])
     config["phi_plot"] = project_path(config["phi_plot"])
-    config["bedrock_plot"] = project_path(config["bedrock_plot"])
-    config["bedrock_text"] = project_path(config["bedrock_text"])
     config["phi_text"] = project_path(
         config.get("phi_text", config["phi_plot"].with_suffix(".txt.gz"))
     )
@@ -106,10 +108,9 @@ def validate_inputs(config: dict) -> None:
         config["dem_input"],
         config["borehole_data"],
         MODEL_DATASET,
-        MODEL_PATH,
-        PREPROCESSOR_PATH,
-        METRICS_PATH,
-        BEDROCK_POINTS_PATH,
+        artifact_directory(config['model_dir']) / 'xgb_spt_model.json',
+        artifact_directory(config['model_dir']) / 'xgb_preprocessor.joblib',
+        artifact_directory(config['model_dir']) / 'metrics.json',
     ]
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
@@ -132,12 +133,12 @@ def validate_inputs(config: dict) -> None:
         raise FileNotFoundError(f"Property mask does not exist: {property_mask}")
 
 
-def load_model_artifacts() -> tuple[xgb.XGBRegressor, object, dict]:
+def load_model_artifacts(config) -> tuple[xgb.XGBRegressor, object, dict]:
     """Load the final all-data model, preprocessing object, and feature manifest."""
     model = xgb.XGBRegressor()
-    model.load_model(MODEL_PATH)
-    preprocessor = joblib.load(PREPROCESSOR_PATH)
-    with METRICS_PATH.open(encoding="utf-8") as stream:
+    model.load_model(artifact_directory(config['model_dir']) / 'xgb_spt_model.json')
+    preprocessor = joblib.load(artifact_directory(config['model_dir']) / 'xgb_preprocessor.joblib')
+    with (artifact_directory(config['model_dir']) / 'metrics.json').open(encoding="utf-8") as stream:
         metrics = json.load(stream)
     if metrics.get("final_fit_rows") is None:
         raise ValueError("Saved model is not the all-data final model. Run 04_train_xgb.py.")
@@ -167,8 +168,13 @@ def predict_grid(
     archive = prepare_chunk_output(output_dir, resume, config.get("existing_chunks", "error"))
     if archive is not None:
         LOGGER.info("Archived previous prediction chunks: %s", archive)
-    model, preprocessor, metrics = load_model_artifacts()
-    bedrock_sources = pd.read_csv(BEDROCK_POINTS_PATH, encoding="utf-8-sig")
+    model, preprocessor, metrics = load_model_artifacts(config)
+    use_solphyj = bool(set(metrics['numeric_features']) & set(SOLPHYJ_COLUMNS))
+    use_soil_inventory = SOIL_CATEGORY in metrics['categorical_features']
+    if use_soil_inventory:
+        load_soil_lookup(config['grid_crs'])
+    if use_solphyj:
+        load_lookup(config['grid_crs'])
     geology = load_geology()
     model_data = pd.read_csv(MODEL_DATASET, usecols=["jshis_meshcode"])
     prefixes = set(model_data["jshis_meshcode"].astype(str).str[:4])
@@ -189,6 +195,7 @@ def predict_grid(
         sep=r"\s+",
         header=None,
         names=["x", "y", "legacy_surface_z", "legacy_bedrock_z"],
+        usecols=[0, 1],
         chunksize=config["input_chunk_size"],
     )
     for chunk_number, chunk in enumerate(chunks, start=1):
@@ -201,7 +208,6 @@ def predict_grid(
         chunk = chunk.apply(pd.to_numeric, errors="coerce")
         if chunk.isna().any(axis=None):
             raise ValueError(f"Non-numeric grid values found in chunk {chunk_number}.")
-        chunk = chunk.drop(columns=["legacy_surface_z", "legacy_bedrock_z"])
         terrain = sample_terrain_features(
             chunk,
             dem,
@@ -220,16 +226,13 @@ def predict_grid(
                 chunk_number,
                 f"{int(missing_terrain.sum()):,}",
             )
-        chunk["n_value_elevation"] = chunk["surface_z"] - prediction_depth
+        chunk["depth"] = prediction_depth
+        chunk["n_value_elevation"] = chunk["surface_z"] - chunk["depth"]
         enriched = attach_spatial_attributes(chunk, geology, jshis, config["grid_crs"])
-        rbf = metrics.get("bedrock_rbf", {})
-        enriched[BEDROCK_RBF_FEATURE] = interpolate_bedrock_rbf(
-            bedrock_sources,
-            enriched,
-            neighbors=int(rbf.get("neighbors", 50)),
-            smoothing=float(rbf.get("smoothing", 0.0)),
-            kernel=str(rbf.get("kernel", "thin_plate_spline")),
-        )
+        if use_soil_inventory:
+            enriched = attach_soil_inventory(enriched, config['grid_crs'])
+        if use_solphyj:
+            enriched = attach_solphyj(enriched, config['grid_crs'])
         features = prepare_features(
             enriched, metrics["numeric_features"], metrics["categorical_features"]
         )
@@ -238,7 +241,6 @@ def predict_grid(
         # Store only coordinates and predictions. Repeating every predictor for
         # tens of millions of 10 m cells would exhaust the available disk space.
         output_columns = ["x", "y", "predicted_n_value"]
-        output_columns.append(BEDROCK_RBF_FEATURE)
         temporary_path = chunk_path.with_suffix(chunk_path.suffix + ".tmp")
         enriched[output_columns].to_csv(
             temporary_path,
@@ -266,8 +268,6 @@ def load_display_points(output_dir: Path, display_spacing: float) -> pd.DataFram
             & np.isclose(np.mod(chunk["y"], display_spacing), 0)
         )
         columns = ["x", "y", "predicted_n_value"]
-        if BEDROCK_RBF_FEATURE in chunk:
-            columns.append(BEDROCK_RBF_FEATURE)
         parts.append(chunk.loc[mask, columns])
     return pd.concat(parts, ignore_index=True)
 
@@ -331,33 +331,6 @@ def save_phi_matrix(output_dir: Path, output_path: Path, config: dict) -> int:
         ny, nx, f"{count:,}", f"{grid.size - count:,}", f"{outside:,}", output_path,
     )
     return count
-
-
-def save_bedrock_text(output_dir: Path, output_path: Path) -> int:
-    """Write the RBF assumed-bedrock distribution for every predicted point."""
-    paths = sorted(output_dir.glob("N_value_10m_*.csv.gz"))
-    if not paths:
-        raise FileNotFoundError(f"No prediction chunks found under: {output_dir}")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path = output_path.with_suffix(output_path.suffix + ".tmp")
-    compression = {"method": "gzip", "compresslevel": 1} if output_path.suffix == ".gz" else None
-    total = 0
-    write_index = 0
-    for path in paths:
-        for values in pd.read_csv(path, usecols=["x", "y", BEDROCK_RBF_FEATURE], chunksize=500_000):
-            values.to_csv(
-                temporary_path,
-                sep=" ",
-                mode="w" if write_index == 0 else "a",
-                header=write_index == 0,
-                index=False,
-                compression=compression,
-            )
-            total += len(values)
-            write_index += 1
-    os.replace(temporary_path, output_path)
-    LOGGER.info("Saved assumed-bedrock text values for %s points: %s", f"{total:,}", output_path)
-    return total
 
 
 def make_display_grid(
@@ -500,12 +473,6 @@ def save_plots(display_points: pd.DataFrame, config: dict) -> None:
         raise ValueError("No display points remain after applying the property mask.")
     grid, extent = make_display_grid(display_points, config["display_spacing_m"])
     phi = np.minimum(np.sqrt(15.0 * grid) + 15.0, PHI_MAX_DEG)
-    bedrock_grid = None
-    if BEDROCK_RBF_FEATURE in display_points:
-        bedrock_points = display_points[["x", "y", BEDROCK_RBF_FEATURE]].rename(
-            columns={BEDROCK_RBF_FEATURE: "predicted_n_value"}
-        )
-        bedrock_grid, _ = make_display_grid(bedrock_points, config["display_spacing_m"])
     cmap = plt.get_cmap("viridis_r").copy()
     cmap.set_bad(color="white")
 
@@ -518,7 +485,6 @@ def save_plots(display_points: pd.DataFrame, config: dict) -> None:
     # observed_n = boreholes["n_value"].to_numpy(dtype=float)
     # n_limits = data_color_limits(observed_n)
     phi_limits = data_color_limits(phi)
-    bedrock_limits = data_color_limits(bedrock_grid) if bedrock_grid is not None else None
     # observed_phi = np.minimum(np.sqrt(15.0 * observed_n) + 15.0, PHI_MAX_DEG,)
     # phi_limits = data_color_limits(observed_phi)
 
@@ -540,17 +506,6 @@ def save_plots(display_points: pd.DataFrame, config: dict) -> None:
             False,
         ),
     ]
-    if bedrock_grid is not None and bedrock_limits is not None:
-        plot_specs.append(
-            (
-                bedrock_grid,
-                config["bedrock_plot"],
-                "RBF-interpolated assumed bedrock elevation",
-                "Assumed bedrock elevation (m)",
-                bedrock_limits,
-                False,
-            )
-        )
     for values, path, title, label, limits, show_boreholes in plot_specs:
         path.parent.mkdir(parents=True, exist_ok=True)
         fig, ax = plt.subplots(figsize=(11, 9))
@@ -589,7 +544,7 @@ def save_plots(display_points: pd.DataFrame, config: dict) -> None:
     LOGGER.info("Phi plot range: %.4f to %.4f", phi_limits[0], phi_limits[1])
 
 
-def main(argv=None) -> None:
+def main(argv=None, output_dir=None) -> None:
     """Run configured chunked direct prediction and optional visualization."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
@@ -601,7 +556,7 @@ def main(argv=None) -> None:
     parser.add_argument("--no-plot", action="store_true")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    config = load_prediction_config(args.config)
+    config = load_prediction_config(args.config, output_dir)
     if args.grid_input is not None:
         config["grid_input"] = args.grid_input
     if args.output_dir is not None:
@@ -612,7 +567,6 @@ def main(argv=None) -> None:
     LOGGER.info("Grid spacing: %g m", config["grid_spacing_m"])
     total = None if args.plot_only else predict_grid(config, args.max_chunks, args.resume)
     phi_total = save_phi_matrix(config["output_chunk_dir"], config["phi_text"], config)
-    bedrock_total = save_bedrock_text(config["output_chunk_dir"], config["bedrock_text"])
     if not args.no_plot:
         display_points = load_display_points(
             config["output_chunk_dir"], config["display_spacing_m"]
@@ -624,11 +578,8 @@ def main(argv=None) -> None:
         print(f"Directly predicted 10 m points: {total:,}")
     print(f"Prediction chunk directory: {config['output_chunk_dir']}")
     print(f"Phi matrix ({phi_total:,} populated cells): {config['phi_text']}")
-    print(f"Assumed-bedrock text ({bedrock_total:,} points): {config['bedrock_text']}")
     if not args.no_plot:
         print(f"Display sampling interval: {config['display_spacing_m']:g} m (no interpolation)")
         print(f"N-value plot: {config['n_value_plot']}")
         print(f"Phi plot: {config['phi_plot']}")
-
-
 

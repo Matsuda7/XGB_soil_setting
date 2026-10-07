@@ -19,7 +19,6 @@ BORING_CSV = project_path("data/raw/boring/BorToCsv.csv")
 SPATIAL_INPUT = project_path("data/interim/boring_geology_jshis.gpkg")
 SPATIAL_LAYER = "boring_geology_jshis"
 OUTPUT_CSV = project_path("data/training/phi/model_dataset.csv")
-BEDROCK_POINTS_OUTPUT = project_path("data/training/phi/assumed_bedrock_points.csv")
 MAX_MEASUREMENTS = 80
 N_VALUE_CAP = 50.0
 
@@ -157,17 +156,6 @@ def merge_measurements_and_attributes(
     result["distance_to_lowest_spt"] = (
         result["n_value_elevation"] - result["lowest_spt_elevation"]
     )
-    n50 = (
-        result.loc[result["n_value"].ge(N_VALUE_CAP)]
-        .sort_values(["boring_id", "depth", "measurement_no"], kind="stable")
-        .drop_duplicates("boring_id")
-        .set_index("boring_id")["n_value_elevation"]
-    )
-    result["assumed_bedrock_elevation"] = result["boring_id"].map(n50)
-    result["assumed_bedrock_from_n50"] = result["assumed_bedrock_elevation"].notna()
-    result["assumed_bedrock_elevation"] = result["assumed_bedrock_elevation"].fillna(
-        result["lowest_spt_elevation"]
-    )
     result["geology_missing"] = result[["symbol", "ser"]].isna().all(axis=1)
     result["jshis_missing"] = ~result["jshis_matched"].astype("boolean").fillna(False).astype(bool)
     # Stage 03 preserves J-SHIS sentinel zeros for auditing. They must not be
@@ -191,8 +179,6 @@ def merge_measurements_and_attributes(
         "n_value_elevation",
         "lowest_spt_elevation",
         "distance_to_lowest_spt",
-        "assumed_bedrock_elevation",
-        "assumed_bedrock_from_n50",
         "n_value",
         "symbol",
         "ser",
@@ -244,12 +230,7 @@ def save_dataset(dataset: pd.DataFrame, output_path: Path) -> None:
     """Save the cleaned measurement-level dataset as UTF-8 CSV."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     dataset.to_csv(output_path, index=False, encoding="utf-8-sig")
-    bedrock_points = dataset[
-        ["boring_id", "x", "y", "assumed_bedrock_elevation", "assumed_bedrock_from_n50"]
-    ].drop_duplicates("boring_id")
-    bedrock_points.to_csv(BEDROCK_POINTS_OUTPUT, index=False, encoding="utf-8-sig")
     LOGGER.info("Saved model dataset: %s", output_path)
-    LOGGER.info("Saved assumed-bedrock RBF sources: %s", BEDROCK_POINTS_OUTPUT)
 
 
 def print_summary(
@@ -278,7 +259,6 @@ def print_summary(
                 "n_value_elevation",
                 "lowest_spt_elevation",
                 "distance_to_lowest_spt",
-                "assumed_bedrock_elevation",
                 "n_value",
                 "jshis_avs30",
                 "jshis_arv",

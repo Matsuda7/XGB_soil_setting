@@ -1,3 +1,4 @@
+from module.output_layout import date_directory
 import json
 import tempfile
 import unittest
@@ -59,7 +60,7 @@ class PipelineTests(unittest.TestCase):
                 self.assertEqual(pipeline.run(config_path=config), 2)
                 preparation.assert_not_called()
                 distribution.assert_not_called()
-            report = json.loads((root / 'run_summary.json').read_text())
+            report = json.loads((date_directory(root) / 'run_summary.json').read_text())
             self.assertEqual(report['stages']['distribute']['phi']['status'], 'blocked')
 
     def test_all_stages_in_order_and_shared_strength_extracted_once(self):
@@ -90,7 +91,7 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(code, 2)
             strength.assert_called_once_with(['c', 'gamma'])
             self.assertEqual(events, ['collect', 'prepare_phi', 'prepare_strength', 'distribute_c', 'distribute_phi', 'distribute_gamma'])
-            report = json.loads((root / 'results/run_summary.json').read_text())
+            report = json.loads((date_directory(root / 'results') / 'run_summary.json').read_text())
             self.assertEqual(report['status'], 'incomplete')
 
     def test_missing_grid_prevents_expensive_training(self):

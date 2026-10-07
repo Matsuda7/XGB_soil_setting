@@ -29,7 +29,7 @@ DEFAULT_LOG_DIR = LOGS
 
 OUTPUT_COLUMNS = [
     "boring_id", "xml_file", "x", "y", "latitude", "longitude", "surface_z",
-    "sample_id", "sample_no", "depth_top", "depth_bottom", "depth_mid", "sample_z",
+    "sample_id", "sample_no", "depth_top", "depth_bottom", "depth_mid", "elevation",
     "soil_name", "soil_code", "test_type", "test_condition_code", "test_condition",
     "wet_density", "dry_density", "particle_density", "water_content", "void_ratio",
     "degree_of_saturation", "gravel_fraction", "sand_fraction", "silt_fraction",
@@ -53,7 +53,7 @@ FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     "depth_top": ("depthtop", "試料採取開始深度", "開始深度", "上端深度"),
     "depth_bottom": ("depthbottom", "試料採取終了深度", "終了深度", "下端深度"),
     "depth_mid": ("depthmid", "試料代表深度", "代表深度", "試料深度"),
-    "sample_z": ("samplez", "試料採取標高", "試料標高"),
+    "elevation": ("samplez", "試料採取標高", "試料標高"),
     "soil_name": ("soilname", "土質名", "土質分類名", "地盤材料の分類名", "分類", "土質"),
     "soil_code": ("soilcode", "地盤材料の分類記号", "分類記号", "土質コード"),
     "test_type": ("testtype", "試験名", "試験種別", "強度試験", "試験条件", "せん断試験条件", "せん断試験条件コード"),
@@ -266,7 +266,7 @@ def make_row(root_values: dict[str, str], record: ET.Element, xml_file: str) -> 
     """Build one output row from borehole-level and record-level values."""
     values = dict(root_values)
     record_fields = {
-        "sample_id", "sample_no", "depth_top", "depth_bottom", "depth_mid", "sample_z",
+        "sample_id", "sample_no", "depth_top", "depth_bottom", "depth_mid", "elevation",
         "soil_name", "soil_code", "test_type", "test_condition_code", "test_condition",
         "wet_density", "dry_density", "particle_density", "water_content", "void_ratio",
         "degree_of_saturation", "gravel_fraction", "sand_fraction", "silt_fraction",
@@ -303,8 +303,8 @@ def make_row(root_values: dict[str, str], record: ET.Element, xml_file: str) -> 
         row["boring_id"] = xml_file.rsplit(".", 1)[0]
     row["latitude"] = coordinate_from_parts(values, "latitude")
     row["longitude"] = coordinate_from_parts(values, "longitude")
-    if row["sample_z"] is None and row["surface_z"] is not None and row["depth_mid"] is not None:
-        row["sample_z"] = float(row["surface_z"]) - float(row["depth_mid"])
+    if row["elevation"] is None and row["surface_z"] is not None and row["depth_mid"] is not None:
+        row["elevation"] = float(row["surface_z"]) - float(row["depth_mid"])
     return row
 
 

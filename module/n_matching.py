@@ -91,10 +91,10 @@ def prepare_n_data(frame, config, output, dem, geology, jshis):
     if holes.empty:
         raise ValueError('No SPT holes inside the permitted DEM extent')
     enriched = enrich(holes, config, dem, geology, jshis)
-    features = enriched.drop(columns=['depth','sample_z','_row'], errors='ignore')
+    features = enriched.drop(columns=['depth','elevation','_row'], errors='ignore')
     spt = raw_spt.merge(features, on=['boring_id','x','y'], how='inner', validate='many_to_one')
     spt['n_value_elevation'] = spt.surface_z-spt.depth
-    spt['sample_z'] = spt.n_value_elevation
+    spt['elevation'] = spt.n_value_elevation
     spt.to_csv(output/'n_spt.csv', index=False)
     report = {'scope':f"soil-test measurements retained for {config.get('model', 'gamma')} training",
               'rows':len(frame), 'matched_rows':int(frame.n_measured.notna().sum()),

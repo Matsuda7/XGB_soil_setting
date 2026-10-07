@@ -112,8 +112,8 @@ import json
 import re
 from pathlib import Path
 
-def load_model_config(path: Path) -> tuple[list[str], list[str]]:
-    """Load and validate the JSON-selected model features."""
+def load_jsonc_config(path: Path) -> dict:
+    """Read configuration with full-line comments and optional trailing commas."""
     if not path.is_file():
         raise FileNotFoundError(f"Model configuration does not exist: {path}")
     with path.open(encoding="utf-8") as stream:
@@ -126,7 +126,12 @@ def load_model_config(path: Path) -> tuple[list[str], list[str]]:
     # Also tolerate a comma left immediately before ] or } after a line is
     # commented out, which makes toggling individual feature lines convenient.
     uncommented = re.sub(r",(?=\s*[}\]])", "", uncommented)
-    config = json.loads(uncommented)
+    return json.loads(uncommented)
+
+
+def load_model_config(path: Path) -> tuple[list[str], list[str]]:
+    """Load and validate the JSON-selected model features."""
+    config = load_jsonc_config(path)
     numeric = config.get("numeric_features")
     categorical = config.get("categorical_features")
     if not isinstance(numeric, list) or not numeric or not all(isinstance(v, str) for v in numeric):

@@ -1,5 +1,5 @@
 {
-  "enabled": true,
+  "enabled": false,
   "spt_input": "data/raw/boring/BorToCsv.csv",
   "model_config": "config/phi/model.jsonc",
   "xy_tolerance_m": 0.01,

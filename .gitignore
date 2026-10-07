@@ -35,3 +35,11 @@ logs/*
 
 # Keep the result directory guide in Git
 !results/README.md
+
+# Experiment outputs stay local; retain only runnable Python sources.
+/gamma_test/**
+!/gamma_test/**/
+!/gamma_test/**/*.py
+/n_test/**
+!/n_test/**/
+!/n_test/**/*.py

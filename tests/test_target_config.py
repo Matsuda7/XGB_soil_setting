@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from module.output_layout import date_directory
 from module import pipeline
 
 
@@ -57,7 +58,7 @@ class TargetConfigTests(unittest.TestCase):
             with patch.object(pipeline, 'RESULTS', root), patch.object(pipeline, 'missing_inputs', return_value=[]), patch('module.distributions.distribute', return_value={'status': 'not_implemented'}) as dispatch:
                 self.assertEqual(pipeline.run(stage='distribute', config_path=config), 2)
                 dispatch.assert_called_once_with('gamma')
-            result = json.loads((root / 'run_summary.json').read_text())
+            result = json.loads((date_directory(root) / 'run_summary.json').read_text())
             self.assertEqual(result['targets'], ['gamma'])
             self.assertEqual(list(result['stages']['distribute']), ['gamma'])
 

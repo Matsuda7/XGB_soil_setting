@@ -1,0 +1,30 @@
+{
+  "baseline_output": "gamma_test/stage2_baseline_borehole",
+  "output": "gamma_test/stage2_terrain_borehole",
+  "models": {
+    "M0": [
+      "x",
+      "y",
+      "elevation"
+    ],
+    "M1": [
+      "x",
+      "y",
+      "elevation",
+      "slope"
+    ],
+    "M2": [
+      "x",
+      "y",
+      "elevation",
+      "curvature"
+    ],
+    "M3": [
+      "x",
+      "y",
+      "elevation",
+      "slope",
+      "curvature"
+    ]
+  }
+}

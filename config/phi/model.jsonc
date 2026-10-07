@@ -1,21 +1,23 @@
 {
+  // true: 実測N=50を含む、false: 除外（学習・評価の両方）
+  "include_n50": true,
+  // 学習に使う最小深度（m、下限を含む）。nullは下限指定なし
+  "training_min_depth_m": 0,
+  // 学習に使う最大深度（m、上限を含む）。nullは全深度、例: 20.0
+  "training_max_depth_m": 10,
   "numeric_features": [
     "x",
     "y",
-    "surface_z",
+    "depth",
     "jshis_avs30",
+    "jshis_arv",
     "slope",
     "curvature",
-    // "dem_missing",
-    "n_value_elevation",
-    "jshis_arv"
-    // データ列にはなく、学習時にRBF生成する場合だけ次の行を有効化する
-    // , "assumed_bedrock_elevation_rbf"
+    "n_value_elevation"
   ],
   "categorical_features": [
     "symbol",
-    "jshis_jcode"
-    //, "ser"
-
+    "jshis_jcode",
+    "soil_inventory_ssg"
   ]
 }

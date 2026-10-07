@@ -1,17 +1,19 @@
 """Controlled gamma comparisons with common evaluation samples and nested SPT fits."""
 import json
+from module.gamma_config import selected_kinds
 import numpy as np
 import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from module.model_reporting import depth_scatter
 from sklearn.model_selection import GroupKFold
 from module.paths import TRAINING
 from module.validation import split_data, save_split
 from module.gamma_features import model_frame
 from module.model_reporting import save_model_reports
 from module.xgb_common import build_preprocessor, build_regressor, regression_metrics
-from module.n_estimation import exclude_queries, fit_predict, spatial_keys, RELIABILITY_COLUMNS
+from module.n_estimation import exclude_queries, fit_predict, RELIABILITY_COLUMNS
 
 
 class InsufficientComparisonData(ValueError):
@@ -40,7 +42,7 @@ def save_evaluation(model,transform,test,numeric,categorical,output,gravity):
     metrics=regression_metrics(test.target,predicted)
     density_metrics=regression_metrics(test.target/gravity,predicted/gravity)
     fig,ax=plt.subplots(figsize=(6,5))
-    ax.scatter(table.observed_density_g_cm3,table.predicted_density_g_cm3,s=20,alpha=.7)
+    depth_scatter(ax,table.observed_density_g_cm3,table.predicted_density_g_cm3,table.get('depth'),s=20,alpha=.7)
     lo=min(table.observed_density_g_cm3.min(),table.predicted_density_g_cm3.min())
     hi=max(table.observed_density_g_cm3.max(),table.predicted_density_g_cm3.max())
     ax.plot([lo,hi],[lo,hi],'k--',lw=1)
@@ -75,21 +77,21 @@ def comparison_for_kind(parts,kind,config,output):
         if scenario=='no_n':
             fitting=train_p.copy();tuning=val_p.copy();evaluation=test_p.copy();features=numeric
         elif scenario in ('measured_n','measured_to_predicted_n'):
-            fitting=train_p.assign(n_input=train_p.n_measured)
-            tuning=val_p.assign(n_input=val_p.n_measured)
-            evaluation=test_p.assign(n_input=test_p.n_measured if scenario=='measured_n' else test_p.n_predicted)
-            features=[*numeric,'n_input']
+            fitting=train_p.assign(n_value=train_p.n_measured)
+            tuning=val_p.assign(n_value=val_p.n_measured)
+            evaluation=test_p.assign(n_value=test_p.n_measured if scenario=='measured_n' else test_p.n_predicted)
+            features=[*numeric,'n_value']
         elif scenario in ('predicted_n','predicted_n_reliability'):
-            fitting=train_p.assign(n_input=train_p.n_predicted)
-            tuning=val_p.assign(n_input=val_p.n_predicted)
-            evaluation=test_p.assign(n_input=test_p.n_predicted)
-            features=[*numeric,'n_input']
+            fitting=train_p.assign(n_value=train_p.n_predicted)
+            tuning=val_p.assign(n_value=val_p.n_predicted)
+            evaluation=test_p.assign(n_value=test_p.n_predicted)
+            features=[*numeric,'n_value']
             if scenario=='predicted_n_reliability': features+=RELIABILITY_COLUMNS
         elif scenario=='measured_plus_supplemental':
-            fitting=train.assign(n_input=train.n_measured.fillna(train.n_predicted))
-            tuning=val_p.assign(n_input=val_p.n_predicted)
-            evaluation=test_p.assign(n_input=test_p.n_predicted)
-            features=[*numeric,'n_input'];supplemental=True
+            fitting=train.assign(n_value=train.n_measured.fillna(train.n_predicted))
+            tuning=val_p.assign(n_value=val_p.n_predicted)
+            evaluation=test_p.assign(n_value=test_p.n_predicted)
+            features=[*numeric,'n_value'];supplemental=True
         elif scenario=='no_n_with_supplemental':
             fitting=train.copy();tuning=val_p.copy();evaluation=test_p.copy();features=numeric;supplemental=True
         else:
@@ -136,7 +138,7 @@ def run_comparison(config,output):
         shutil.copyfile(TRAINING/'gamma'/name, output/name)
     frame=pd.read_csv(TRAINING/'gamma/measurements.csv')
     spt=pd.read_csv(TRAINING/'gamma/n_spt.csv')
-    frame=frame.loc[frame[['gamma_wet','gamma_dry']].notna().any(axis=1)].copy()
+    frame=frame.loc[frame[['gamma_'+kind for kind in selected_kinds(config)]].notna().any(axis=1)].copy()
     required={'n_measured','comparison_hole_id','source_boring_id','record_id'}
     if required-set(frame): raise ValueError('Rerun gamma preparation to add N correspondence columns')
     frame['boring_id']=frame.comparison_hole_id
@@ -145,10 +147,9 @@ def run_comparison(config,output):
     for name,table in [('SPT',spt),('density',frame)]:
         if set(numeric+categorical)-set(table): raise ValueError(f'{name}: unavailable N model features')
     modes=[config['validation']['mode']]
-    if config['validation']['additional_spatial'] and 'spatial' not in modes: modes.append('spatial')
     all_rows=[];reports=[]
     for mode in modes:
-        if mode=='row': raise ValueError('N comparison requires borehole or spatial validation; disable comparison for row validation')
+        if mode=='row': raise ValueError('N comparison requires borehole validation; disable comparison for row validation')
         directory=output/mode;directory.mkdir(exist_ok=True)
         validation=dict(config['validation'],mode=mode)
         if frame.boring_id.nunique()<5:
@@ -157,7 +158,7 @@ def run_comparison(config,output):
         save_split(parts,directory/'gamma_split.csv')
         train,val,test=parts
         # Require enough PRIMARY samples before expensive nested N fits.
-        viable=[kind for kind in ('wet','dry') if all(len(p.loc[p.n_measured.notna() & p['gamma_'+kind].notna()])>=2 for p in parts)]
+        viable=[kind for kind in selected_kinds(config) if all(len(p.loc[p.n_measured.notna() & p['gamma_'+kind].notna()])>=2 for p in parts)]
         if not viable:
             reports.append({'mode':mode,'status':'insufficient_data','reason':'Too few primary samples in one or more splits'});continue
         heldout=pd.concat([val,test],ignore_index=True)
@@ -172,7 +173,7 @@ def run_comparison(config,output):
         val=predicted_holdout.loc[predicted_holdout.record_id.isin(val.record_id)].copy()
         test=predicted_holdout.loc[predicted_holdout.record_id.isin(test.record_id)].copy()
         # Cross-fitting supplies every gamma training row with an out-of-hole/area N.
-        groups=spatial_keys(train,validation['block_size_m']) if mode=='spatial' else train.boring_id
+        groups=train.boring_id
         folds=min(options['cross_fit_folds'],groups.nunique())
         if folds<2:
             reports.append({'mode':mode,'status':'insufficient_data','reason':'Too few training groups for cross-fitting'});continue
@@ -185,7 +186,7 @@ def run_comparison(config,output):
         train=pd.concat(predictions,ignore_index=True)
         for name,part in zip(('train','validation','test'),(train,val,test)):
             part.to_csv(directory/f'{name}_n_features.csv',index=False)
-        for kind in ('wet','dry'):
+        for kind in selected_kinds(config):
             try:
                 rows=comparison_for_kind((train,val,test),kind,config,directory/kind)
             except InsufficientComparisonData as error:

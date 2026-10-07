@@ -207,7 +207,6 @@ X Y legacy_surface_z legacy_bedrock_z
 | `symbol` | GSJ地質凡例記号 | カテゴリ | One-Hot Encoding |
 | `jshis_jcode` | J-SHIS微地形区分 | カテゴリ | One-Hot Encoding |
 | `ser` | GSJ凡例通し番号 | カテゴリ | One-Hot Encoding |
-| `assumed_bedrock_elevation_rbf` | 仮定基盤標高のRBF補間値 | 数値 | m |
 
 次の列は特徴量に使用しません。
 
@@ -215,26 +214,10 @@ X Y legacy_surface_z legacy_bedrock_z
 depth
 lowest_spt_elevation
 distance_to_lowest_spt
-assumed_bedrock_elevation
 geology_missing
 jshis_missing
 ```
 
-### 仮定基盤標高とRBF分布
-
-孔ごとに、地表から最初に`N値 >= 50`となる測定点の標高を`assumed_bedrock_elevation`とします。N値50に達しない孔では、最も低いSPT測定標高`lowest_spt_elevation`を代用します。これは地質学的な基盤面の確定値ではなく、本解析上の仮定値です。
-
-`assumed_bedrock_elevation_rbf`を選択した場合、学習孔の特徴量は孔単位5分割の交差補間で作り、評価時はテスト孔・検証孔をRBF元点から除外して、目的変数情報の漏洩を防ぎます。10 m格子分布では全学習孔を元点にします。観測孔群の外側でRBF外挿が発散しないよう、補間値は元点標高の最小～最大範囲に制限します。
-
-- `data/processed/assumed_bedrock_points.csv`：孔別RBF元点
-- `data/processed/grid_10m/assumed_bedrock_10m.txt.gz`：10 m格子RBF分布
-- `data/processed/grid_10m/assumed_bedrock_10m.png`：RBF分布図
-
-10 m予測では次式で予測点標高を作ります。`prediction_depth_m`を変更すると、同じXYでも異なる深度のN値を推定できます。
-
-```python
-n_value_elevation = surface_z - prediction_depth_m
-```
 
 ### 特徴量の選択
 
@@ -249,7 +232,6 @@ n_value_elevation = surface_z - prediction_depth_m
     "y",
     "surface_z",
     "n_value_elevation"
-    // , "assumed_bedrock_elevation_rbf"
   ],
   "categorical_features": ["symbol", "jshis_jcode"]
 }
@@ -284,7 +266,7 @@ n_value_elevation = surface_z - prediction_depth_m
 | `n_plot_min` | N値図の表示最小値 | 0.0 |
 | `n_plot_max` | N値図の表示最大値 | 62.0 |
 | `input_chunk_size` | 1回の処理行数 | 200,000 |
-| `output_chunk_dir` | 予測チャンク出力先 | `data/processed/grid_10m/chunks` |
+| `output_chunk_dir` | 予測チャンク出力先 | `results/YYYYMMDD/phi/grid/chunks` |
 | `property_mask` | 表示領域マスク | `prop.txt`への設定パス |
 
 N値の学習目標と予測値は0～50です。`n_plot_max = 62`は画像カラースケールだけに適用されます。各孔の最浅実測N値を背景と同じカラーマップで重ねます。
@@ -303,10 +285,10 @@ N値の学習目標と予測値は0～50です。`n_plot_max = 62`は画像カ�
 | 評価図 | `data/processed/model/observed_vs_predicted.png` | 実測SPT-Nと予測N値の比較 |
 | 比較 | `data/processed/model/feature_set_comparison.csv/.png` | ケースA～Dの比較 |
 | 寄与度 | `data/processed/model/feature_importance*.csv/.png` | gain寄与度 |
-| 予測 | `data/processed/grid_10m/chunks/*.csv.gz` | X、Y、10 m格子予測N値 |
-| 予測 | `data/processed/grid_10m/phi_10m.txt.gz` | ヘッダーなし二次元内部摩擦角行列（行=Y、列=X、欠損格子=0） |
-| 可視化 | `data/processed/grid_10m/N_value_10m.png` | N値分布図 |
-| 可視化 | `data/processed/grid_10m/phi_10m.png` | 内部摩擦角参考図 |
+| 予測 | `results/YYYYMMDD/phi/grid/chunks/*.csv.gz` | X、Y、10 m格子予測N値 |
+| 予測 | `results/YYYYMMDD/phi/grid/phi_10m.txt.gz` | ヘッダーなし二次元内部摩擦角行列（行=Y、列=X、欠損格子=0） |
+| 可視化 | `results/YYYYMMDD/phi/grid/N_value_10m.png` | N値分布図 |
+| 可視化 | `results/YYYYMMDD/phi/grid/phi_10m.png` | 内部摩擦角参考図 |
 
 ## データ品質と研究上の注意
 
@@ -329,3 +311,75 @@ N値の学習目標と予測値は0～50です。`n_plot_max = 62`は画像カ�
 - **浮動小数点境界**：格子境界付近の座標で範囲判定が変わり得るため、除外孔数と座標を実行ログで監査する。
 - 未知地域への一般化性能を評価する場合は、別地域テストまたは空間ブロック交差検証が必要です。
 - 古いモデル、評価ファイル、予測チャンクはDEM導入前の特徴量構成と互換性がありません。新しい04・05の結果に対して06を実行してください。
+
+基盤面作成は廃止しました。現在の保存先は [出力構成](output_layout.md) を参照してください。
+
+## 学習データの深度範囲と5-fold CV
+
+`config/phi/model.jsonc` で学習に使う深度範囲を指定します。単位は地表からの深さ（m）、両端を含みます。
+
+```json
+"training_min_depth_m": 5.0,
+"training_max_depth_m": 20.0
+```
+
+この例は5〜20 mの測定データを使用します。各設定の `null` または省略はその側の制限なしです。
+どちらかを指定した場合は、深度の欠損・非数値・無限大・負値を除外します。最小値が最大値を超える指定や抽出後0件はエラーです。
+深度を説明変数から外した場合も抽出します。準備済みCSVは変更せず、CVの分割前に抽出します。
+`model/artifacts/model_config.json` に使用設定、`model/artifacts/training_depth_filter.json` と `model/artifacts/metrics.json` に深度条件と抽出前後の件数を保存します。
+保存済みモデルの全実測比較図を再作成するときも、そのモデルに保存された上下限を使用します。
+
+分布を計算する深度は別設定です。`config/phi/prediction.json` の `prediction_depth_m` で指定します。
+
+```bash
+python 03_create_distributions.py --targets phi
+```
+
+このコマンドで5-fold CV、最終学習、N値とφの分布作成を行います。
+深度範囲を変更して同じコマンドを実行すると、それぞれの条件で再学習します。
+出力先は `results/YYYYMMDD/phi/`。同日の前回結果は `results/YYYYMMDD/archive/phi_<時刻>_<ID>/` へ退避されます。
+
+### 5-fold CVの分割と最終モデル
+
+`config/phi/validation.json` は `mode: "borehole"`、`n_splits: 5` を使用します。
+孔IDをソートし、`random_state` でシャッフルして5群に分割します。同じ孔の測定点は必ず同じ群です。
+各foldで4群を学習用、1群を評価用として、全採用点をちょうど1回ずつ評価します。
+4群の中から `validation_size` の割合の孔をearly stopping用に分けて木数を決め、その木数で4群全体を再学習して評価します。
+前処理も各学習対象だけで適合します。評価foldをearly stoppingや前処理の学習に使用しません。
+従来の `test_size` はφの5-fold CVには使用しません（他の既存holdout処理との設定互換用）。
+5孔以上が必要で、各foldの学習・内部検証・評価が2点未満なら停止します。
+最終分布用モデルは各foldで選んだ木数の中央値で、深度条件を満たす全データを再学習します。
+
+### 評価結果の出力
+
+`results/YYYYMMDD/phi/model/` 直下には次の4枚だけを残します。
+
+- `feature_contribution.png`: 説明変数ごとの寄与度
+- `feature_importance.png`: 元の説明変数に集約した重要度
+- `observed_vs_predicted_n_all.png`: 最終モデルと全採用データの比較
+- `observed_vs_predicted_n_test.png`: 全OOF予測の比較
+
+指標は1階層上の **`results/YYYYMMDD/phi/evaluation_metrics.csv`** にまとめます。
+列は `result`, `r2`, `rmse`, `mae`, 件数、木数、対象変数、最小・最大深度、標準偏差のddofです。
+行は `fold_1`〜`fold_5`、`fold_mean`（単純平均）、`fold_std`（標本標準偏差、ddof=1）、`cv_oof`（全評価予測を連結して再計算）、`all_observed`（最終学習モデルの当てはまり）です。
+平均・標準偏差行の件数・木数は空欄です。深度条件の空欄はその側の制限なしを表します。
+指標の対象はφ推定の基礎となる **SPT N値（上限50）** であり、φ角度の誤差ではありません。
+
+モデル、前処理、実行設定、予測値CSV、分割記録、補助図、各foldのモデル・補助レポートは `model/artifacts/` に保存します。
+機械読み取り用の `artifacts/metrics.json` はモデル読込と再描画に必要なため保持します。通常の指標確認には上記CSVだけを使用します。
+既存のholdout結果を整理した場合は `heldout_test` と `all_observed` を記録します。未実行のCV指標は作成しません。
+旧形式の `model/` 直下にモデルが保存されている結果も読み込めます。
+
+### N=50を含めるかの切り替え
+
+`config/phi/model.jsonc` の `include_n50` を `true`（含む・既定値）または `false`（除外）に設定します。
+通常設定は `true` です。省略した旧設定も `true` として扱います。
+`false` では深度で抽出した後、N=50の行を5-fold CVの分割前に除外します。学習・検証・評価・最終学習のすべてが同じ抽出条件になります。
+上限50に丸められた行も除外対象です。データ原本は変更しません。
+実行は `python 03_create_distributions.py --targets phi`。集約指標CSVの `include_n50` 列と、モデルの設定・メタデータに条件を記録します。
+保存済みモデルを再描画するときは、そのモデルに保存された条件を使用します。
+
+### 評価CSVへの実行条件の記載
+
+`evaluation_metrics.csv` の各行に説明変数（`numeric_features` / `categorical_features`）、深度条件、N=50の扱い、設定全体（`model_settings_json`）、CV設定（`validation_config_json`）、XGBoostパラメータ（`xgb_parameters_json`）、最終学習件数・孔数・木数を記録します。配列・辞書はJSON文字列です。
+修正理由: 指標CSVだけで解析条件を比較・追跡できるようにするためです。過去結果の再出力には実行時の保存設定を使用し、現在の設定ファイルは読みません。古い結果に記録がない設定はnullまたは空欄です。
