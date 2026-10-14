@@ -10,7 +10,8 @@ import re
 from pathlib import Path
 from module.paths import project_path
 from module.model_reporting import save_model_reports
-from module.xgb_common import load_model_config, load_jsonc_config
+from module.xgb_common import load_model_config
+from module.configuration import load_model_settings
 from module.solphyj_features import COLUMNS as SOLPHYJ_COLUMNS, attach_solphyj, build_n_preprocessor
 from module.solphyj_features import SOIL_CATEGORY, attach_soil_inventory
 from module.validation import load_config as load_validation_config, split_data, save_split
@@ -611,16 +612,16 @@ def main(output_dir=None) -> None:
 def _main() -> None:
     """Run borehole splitting, preprocessing, training, evaluation, and saving."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    model_config = load_model_settings()
     numeric_features, categorical_features = load_model_config(MODEL_CONFIG)
-    model_config = load_jsonc_config(MODEL_CONFIG)
-    maximum = validate_training_max_depth(model_config.get('training_max_depth_m'))
-    minimum = validate_training_depth(model_config.get('training_min_depth_m'), 'training_min_depth_m')
-    include_n50 = model_config.get('include_n50', True)
+    maximum = model_config['training_max_depth_m']
+    minimum = model_config['training_min_depth_m']
+    include_n50 = model_config['include_n50']
     data = load_dataset(INPUT_CSV, numeric_features, categorical_features, maximum, minimum, include_n50)
     depth_filter = dict(data.attrs['training_depth_filter'])
     output_path().mkdir(parents=True, exist_ok=True)
     (output_path() / 'model_config.json').write_text(
-        json.dumps({**model_config, 'training_min_depth_m': minimum, 'training_max_depth_m': maximum, 'include_n50': include_n50}, indent=2) + '\n')
+        json.dumps({**model_config, 'numeric_features': numeric_features, 'categorical_features': categorical_features}, indent=2) + '\n')
     (output_path() / 'training_depth_filter.json').write_text(
         json.dumps(depth_filter, indent=2) + '\n')
     evaluation_model, evaluation_preprocessor, predictions, metrics = train_and_evaluate(
@@ -633,10 +634,11 @@ def _main() -> None:
     metrics["include_n50"] = include_n50
     metrics["training_n_filter"] = dict(data.attrs['training_n_filter'])
     metrics["training_dataset"] = str(INPUT_CSV)
-    metrics["feature_selection"] = "model_config.jsonc"
+    metrics["feature_selection"] = "config/phi/model.jsonc"
     metrics["model_config"] = str(MODEL_CONFIG)
-    metrics["model_settings"] = {**model_config, 'training_min_depth_m': minimum,
-                                 'training_max_depth_m': maximum, 'include_n50': include_n50}
+    metrics["shared_model_config"] = "config/model.json"
+    metrics["model_settings"] = {**model_config, 'numeric_features': numeric_features,
+                                 'categorical_features': categorical_features}
     metrics["excluded_dependent_features"] = [
         "depth",
         "lowest_spt_elevation",

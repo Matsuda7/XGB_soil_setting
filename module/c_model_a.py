@@ -5,7 +5,12 @@ from module.output_layout import create_target_directory
 import joblib
 import numpy as np
 import pandas as pd
-from module.paths import CONFIG, RAW, TRAINING, project_path
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from module.model_reporting import depth_scatter
+from module.paths import RAW, TRAINING, project_path
+from module.configuration import load_model_settings, load_prediction_settings
 from module.model_reporting import save_model_reports
 from module.xgb_common import load_model_config, build_preprocessor, build_regressor, regression_metrics
 from module.gamma_features import load_dem, terrain_at, geographic_context, enrich, model_frame
@@ -16,8 +21,13 @@ SOURCE_REFERENCE='https://www.pref.yamaguchi.lg.jp/uploaded/attachment/189665.pd
 
 
 def load_config():
-    config=json.loads((CONFIG/'c/prediction.json').read_text())
-    config['spatial']=json.loads(project_path(config['spatial_config']).read_text())
+    config=load_prediction_settings('config/c/prediction.json')
+    config['spatial']={key:config[key] for key in ('grid_input','dem_input','dem_cache','grid_crs','grid_spacing_m','property_mask','property_mask_spacing_m','property_mask_bounds')}
+    config['spatial']['grid_input']=project_path(config['spatial']['grid_input'])
+    config['spatial']['dem_input']=project_path(config['spatial']['dem_input'])
+    config['spatial']['dem_cache']=project_path(config['spatial']['dem_cache'])
+    config['spatial']['property_mask']=project_path(config['spatial']['property_mask'])
+    config['model_settings']=load_model_settings()
     grid_shape(config['spatial'])
     if config['spatial']['grid_crs'] != 'EPSG:6675':
         raise ValueError('Model A currently requires Japan Plane Rectangular CS VII (EPSG:6675)')
@@ -69,9 +79,16 @@ def select_targets(raw):
 
 
 def signature(config):
-    return {'schema':'model_A_effective_cohesion_predicted_n_v2','spatial':config['spatial'],
+    # load_config resolves spatial paths for file access; store them as strings
+    # because preparation_summary.json must be JSON serializable.
+    spatial = {
+        key: str(value) if isinstance(value, Path) else value
+        for key, value in config['spatial'].items()
+    }
+    return {'schema':'model_A_effective_cohesion_predicted_n_v2','spatial':spatial,
             'n_estimation':config['n_comparison'],
-            'numeric_features':config['numeric_features'],'categorical_features':config['categorical_features']}
+            'numeric_features':config['numeric_features'],'categorical_features':config['categorical_features'],
+            'training_depth':config['model_settings']}
 
 
 def prepare(raw=None):
@@ -106,8 +123,14 @@ def prepare(raw=None):
     outside=terrain_at(frame,dem,config).surface_z.isna()
     exclusions.append(frame.loc[outside].assign(exclusion_reason='outside_dem'))
     frame=frame.loc[~outside].copy()
+    limits=config['model_settings']; depth=frame.depth
+    in_range=pd.Series(True,index=frame.index)
+    if limits['training_min_depth_m'] is not None: in_range &= depth >= limits['training_min_depth_m']
+    if limits['training_max_depth_m'] is not None: in_range &= depth <= limits['training_max_depth_m']
+    exclusions.append(frame.loc[~in_range].assign(exclusion_reason='outside_training_depth_range'))
+    frame=frame.loc[in_range].copy()
     pd.concat(exclusions,ignore_index=True).to_csv(output/'excluded_records.csv',index=False)
-    if frame.empty: raise ValueError('No Model A observations within DEM bounds')
+    if frame.empty: raise ValueError('No Model A observations within the configured DEM and training-depth range')
     geology,jshis=geographic_context(config,frame)
     frame=enrich(frame,config,dem,geology,jshis)
     frame['n_value_elevation']=frame.surface_z-frame.depth
@@ -123,6 +146,7 @@ def prepare(raw=None):
             'rows':len(frame),'holes':int(frame.boring_id.nunique()),
             'test_types':frame.test_type.value_counts().to_dict(),'zero_targets':int(frame.target.eq(0).sum()),
             'target_range_kpa':[float(frame.target.min()),float(frame.target.max())],
+            'training_depth_limits':config['model_settings'],
             'target_definition':"effective cohesion c-prime; soiltestlist effective-stress shear intercept",
             'unit':'kPa = kN/m2','source_reference':SOURCE_REFERENCE,'signature':signature(config)}
     (output/'preparation_summary.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
@@ -131,10 +155,6 @@ def prepare(raw=None):
 
 def evaluate(data,config,output,mode,scenario="predicted_n",parts=None):
     from module.gamma_training import fit_evaluation
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-from module.model_reporting import depth_scatter
     output.mkdir(parents=True,exist_ok=True)
     if parts is None:
         parts=split_data(data,dict(config['validation'],mode=mode),target_column='target')
@@ -169,23 +189,47 @@ from module.model_reporting import depth_scatter
 
 
 def compare_n_conditions(data,config,output,mode):
-    """Compare N inputs on identical measured-N-matched samples and splits."""
+    """Evaluate predicted-N on all c samples; compare measured-N only if splitable."""
     if 'n_value' not in config['numeric_features']:
         return evaluate(data,config,output,mode)
-    common=data.loc[data.n_measured.notna()].copy()
-    parts=split_data(common,dict(config['validation'],mode=mode),target_column='target')
-    if min(map(len,parts))<2:
-        raise ValueError('c N comparison requires at least two matched samples per split')
     output.mkdir(parents=True,exist_ok=True)
-    save_split(parts,output/'common_split.csv')
+    common=data.loc[data.n_measured.notna()].copy()
+    required_holes=5
+    measured_available=common.boring_id.nunique()>=required_holes
     results={}
+    if measured_available:
+        parts=split_data(common,dict(config['validation'],mode=mode),target_column='target')
+        measured_available=min(map(len,parts))>=2
+    if measured_available:
+        evaluation_data=common
+        parts=tuple(part.copy() for part in parts)
+        save_split(parts,output/'common_split.csv')
+        scenarios=config['n_comparison']['scenarios']
+    else:
+        # Preserve all eligible c samples; predicted N is available through the
+        # leakage-safe upstream pipeline even when observed N does not match.
+        evaluation_data=data
+        parts=split_data(evaluation_data,dict(config['validation'],mode=mode),target_column='target')
+        if min(map(len,parts))<2:
+            raise ValueError('c N comparison requires at least two samples per validation split')
+        save_split(parts,output/'predicted_n_split.csv')
+        scenarios=['predicted_n']
+    for scenario in scenarios:
+        results[scenario]=evaluate(evaluation_data,config,output/scenario,mode,scenario,parts)
+    comparison=[]
     for scenario in config['n_comparison']['scenarios']:
-        results[scenario]=evaluate(common,config,output/scenario,mode,scenario,parts)
-    pd.DataFrame([{'scenario':name,**result['test'],
-                   'training_rows':result['rows']['train'],
-                   'validation_rows':result['rows']['validation'],
-                   'test_rows':result['rows']['test']}
-                  for name,result in results.items()]).to_csv(output/'comparison.csv',index=False)
+        if scenario in results:
+            result=results[scenario]
+            comparison.append({'scenario':scenario,'status':'evaluated',**result['test'],
+                              'training_rows':result['rows']['train'],
+                              'validation_rows':result['rows']['validation'],
+                              'test_rows':result['rows']['test']})
+        else:
+            comparison.append({'scenario':scenario,'status':'unavailable',
+                               'reason':f'measured-N matches only {common.boring_id.nunique()} borehole(s); '
+                                        f'at least {required_holes} required for borehole validation',
+                               'matched_rows':len(common),'matched_boreholes':int(common.boring_id.nunique())})
+    pd.DataFrame(comparison).to_csv(output/'comparison.csv',index=False)
     return results['predicted_n']
 
 
@@ -193,7 +237,7 @@ def distribute():
     config = load_config()
     run = create_target_directory('c')
     config['output_dir'] = str(run)
-    (run/'config.json').write_text(json.dumps(config,indent=2)+'\n')
+    (run/'config.json').write_text(json.dumps(config,indent=2,default=str)+'\n')
     status={'status':'running','model':'A','run':run.name,'target':"effective cohesion c'",'unit':'kPa'}
     try:
         preparation=json.loads((TRAINING/'c/model_A/preparation_summary.json').read_text())

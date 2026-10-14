@@ -1,0 +1,5 @@
+{
+  "training_min_depth_m": 0,
+  "training_max_depth_m": 10,
+  "include_n50": true
+}

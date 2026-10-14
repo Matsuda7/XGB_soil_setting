@@ -29,7 +29,9 @@ def grid_shape(spatial):
 
 
 def load_config(path=None):
-    config = json.loads(project_path(path or CONFIG/'gamma/prediction.json').read_text(encoding='utf-8'))
+    from module.configuration import load_model_settings, load_prediction_settings
+    config = load_prediction_settings(path or 'config/gamma/prediction.json')
+    config['model_settings'] = load_model_settings()
     config['gamma_kind'] = selected_kinds(config)[0]
     from module.n_comparison_config import load_options
     config['n_comparison'] = load_options(config['n_comparison_config'])
@@ -55,7 +57,7 @@ def load_config(path=None):
     size = config['input_chunk_size']
     if isinstance(size,bool) or not isinstance(size,int) or size < 1:
         raise ValueError('input_chunk_size must be a positive integer')
-    spatial = json.loads(project_path(config['spatial_config']).read_text(encoding='utf-8'))
+    spatial = {key:config[key] for key in ('grid_input','dem_input','dem_cache','grid_crs','grid_spacing_m','property_mask','property_mask_spacing_m','property_mask_bounds')}
     grid_shape(spatial)
     if config['n_comparison']['enabled'] and spatial['grid_crs'] != 'EPSG:6675':
         raise ValueError('The SPT coordinate CSV uses EPSG:6675; transform it before using another CRS')
@@ -78,5 +80,6 @@ def data_signature(config):
     return {k:config[k] for k in ('density_unit','gravity_m_s2','exclude_outside_dem')} | {
         'numeric_features':config['numeric_features'],
         'categorical_features':config['categorical_features'],
+        'training_depth':config['model_settings'],
         'n_comparison':config.get('n_comparison', {'enabled':False}),
         'spatial':{k:spatial[k] for k in ('grid_crs','dem_input','dem_cache','grid_spacing_m','property_mask_spacing_m','property_mask_bounds')}}

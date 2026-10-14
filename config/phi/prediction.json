@@ -1,7 +1,5 @@
 {
-  "spatial_config": "config/spatial.json",
   "borehole_data": "data/raw/boring/BorToCsv.csv",
-  "prediction_depth_m": 1.0,
   "display_spacing_m": 10.0,
   "n_plot_min": 0.0,
   "n_plot_max": 62.0,

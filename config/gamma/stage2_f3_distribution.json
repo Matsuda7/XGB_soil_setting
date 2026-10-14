@@ -43,8 +43,6 @@
     "eval_metric": "rmse",
     "early_stopping_rounds": 75
   },
-  "spatial_config": "config/spatial.json",
-  "prediction_depth_m": 1.0,
   "distribution_model": "F3_depth",
   "gravity_m_s2": 9.80665,
   "input_chunk_size": 100000,

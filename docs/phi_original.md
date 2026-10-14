@@ -383,3 +383,6 @@ python 03_create_distributions.py --targets phi
 
 `evaluation_metrics.csv` の各行に説明変数（`numeric_features` / `categorical_features`）、深度条件、N=50の扱い、設定全体（`model_settings_json`）、CV設定（`validation_config_json`）、XGBoostパラメータ（`xgb_parameters_json`）、最終学習件数・孔数・木数を記録します。配列・辞書はJSON文字列です。
 修正理由: 指標CSVだけで解析条件を比較・追跡できるようにするためです。過去結果の再出力には実行時の保存設定を使用し、現在の設定ファイルは読みません。古い結果に記録がない設定はnullまたは空欄です。
+
+
+学習に使う深度範囲とN=50の扱いは対象間で揃えるため、`config/model.json`で設定します。φの説明変数は`config/phi/model.jsonc`に置きます。予測深度と空間条件は共通の`config/prediction.json`を使い、φ固有の表示・入出力設定は`config/phi/prediction.json`に置きます。

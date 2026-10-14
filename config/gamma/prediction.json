@@ -1,8 +1,6 @@
 {
   "gamma_kind": "wet",
-  "spatial_config": "config/spatial.json",
   "model_config": "config/gamma/model.jsonc",
-  "prediction_depth_m": 1.0,
   "density_unit": "g/cm3",
   "gravity_m_s2": 9.80665,
   "exclude_outside_dem": true,

@@ -1,10 +1,4 @@
 {
-  // true: 実測N=50を含む、false: 除外（学習・評価の両方）
-  "include_n50": true,
-  // 学習に使う最小深度（m、下限を含む）。nullは下限指定なし
-  "training_min_depth_m": 0,
-  // 学習に使う最大深度（m、上限を含む）。nullは全深度、例: 20.0
-  "training_max_depth_m": 10,
   "numeric_features": [
     "x",
     "y",

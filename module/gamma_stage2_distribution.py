@@ -25,7 +25,8 @@ from module.xgb_common import build_regressor, regression_metrics
 
 
 def load_config(path):
-    config = json.loads(project_path(path).read_text())
+    from module.configuration import load_prediction_settings
+    config = load_prediction_settings(path)
     depth = config['prediction_depth_m']
     if isinstance(depth, bool) or not isinstance(depth, (int, float)) or not math.isfinite(depth) or depth < 0:
         raise ValueError('prediction_depth_m must be finite and non-negative')
@@ -41,7 +42,7 @@ def load_config(path):
         raise ValueError('Features must match the selected depth-enabled model')
     if config['sample_weight'] != 1.0:
         raise ValueError('Expected equal weights')
-    config['spatial'] = json.loads(project_path(config['spatial_config']).read_text())
+    config['spatial'] = {key: config[key] for key in ('grid_input','dem_input','dem_cache','grid_crs','grid_spacing_m','property_mask','property_mask_spacing_m','property_mask_bounds')}
     grid_shape(config['spatial'])
     ratio = config['display_spacing_m'] / config['spatial']['grid_spacing_m']
     if not math.isfinite(ratio) or ratio < 1 or not math.isclose(ratio, round(ratio)):

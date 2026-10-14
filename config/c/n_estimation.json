@@ -1,7 +1,7 @@
 {
   "enabled": true,
   "spt_input": "data/raw/boring/BorToCsv.csv",
-  "model_config": "config/phi/model.jsonc",
+  "model_config": "config/c/n_model.jsonc",
   "xy_tolerance_m": 0.01,
   "depth_tolerance_m": 1e-06,
   "cross_fit_folds": 5,

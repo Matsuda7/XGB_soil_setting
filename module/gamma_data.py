@@ -35,6 +35,11 @@ def prepare(config=None, raw=None):
     invalid = ~np.isfinite(frame.depth) | (frame.depth<0) | frame[['gamma_wet','gamma_dry']].isna().all(axis=1)
     rejected.append(frame.loc[invalid].assign(exclusion_reason='invalid_density_or_depth'))
     frame = frame.loc[~invalid].copy()
+    limits=config['model_settings']; in_range=pd.Series(True,index=frame.index)
+    if limits['training_min_depth_m'] is not None: in_range &= frame.depth >= limits['training_min_depth_m']
+    if limits['training_max_depth_m'] is not None: in_range &= frame.depth <= limits['training_max_depth_m']
+    rejected.append(frame.loc[~in_range].assign(exclusion_reason='outside_training_depth_range'))
+    frame=frame.loc[in_range].copy()
     if frame.empty:
         raise ValueError('No usable gamma measurements after density/depth checks')
     frame, bad_coordinates = project_records(frame, RAW/'soiltest/strength', config['spatial']['grid_crs'])
@@ -63,7 +68,7 @@ def prepare(config=None, raw=None):
         from module.n_matching import MATCH_COLUMNS
         columns += ['depth_top','depth_bottom','source_boring_id','comparison_hole_id',*MATCH_COLUMNS]
     report={'status':'prepared','density_unit':'g/cm3','target_unit':'kN/m3',
-            'raw_density_rows':int(considered.sum()),'raw_density_boreholes':int(raw.loc[considered,'boring_id'].nunique()),
+            'training_depth_limits':config['model_settings'],'raw_density_rows':int(considered.sum()),'raw_density_boreholes':int(raw.loc[considered,'boring_id'].nunique()),
             'duplicate_rows':int(duplicates.sum()),'outside_dem_rows':int(outside.sum()),
             'dry_exceeds_wet_rows':int(raw.dry_exceeds_wet.sum()),'signature':data_signature(config),'variants':{}}
     for kind in KINDS:
