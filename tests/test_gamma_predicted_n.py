@@ -20,9 +20,9 @@ class EchoNModel:
 class PredictedNTests(unittest.TestCase):
     def test_depth_elevation_and_ensemble_mean(self):
         frame=pd.DataFrame({'x':[1.], 'y':[2.], 'surface_z':[12.], 'depth':[3.]})
-        metrics={'numeric_features':['n_value_elevation'], 'categorical_features':[], 'interval_radius':4.}
+        metrics={'numeric_features':['sample_elevation'], 'categorical_features':[], 'interval_radius':4.}
         def predict(models, transform, query, numeric, categorical):
-            self.assertEqual(query.n_value_elevation.iloc[0],9.)
+            self.assertEqual(query.sample_elevation.iloc[0],9.)
             return np.array([[10.],[20.],[30.]])
         with patch('module.gamma_predicted_n.predict_ensemble',side_effect=predict):
             result=add_predicted_n(frame,([],None,metrics))

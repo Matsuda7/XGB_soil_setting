@@ -6,7 +6,7 @@
     "slope",
     "curvature",
     "jshis_avs30",
-    "n_value_elevation",
+    "sample_elevation",
     "jshis_arv"
   ],
   "categorical_features": [

@@ -33,4 +33,10 @@ def load_prediction_settings(path):
     spatial_path = config.get("spatial_config")
     if spatial_path:
         config = {**_read_json(spatial_path), **config}
+    model = _read_json("config/model.json")
+    for key in ("prediction_depth_m", "observed_depth_tolerance_m"):
+        value = model.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+            raise ValueError(f"{key} must be finite and non-negative in config/model.json")
+        config[key] = value
     return config

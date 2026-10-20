@@ -32,7 +32,7 @@ def load_config():
     if config['spatial']['grid_crs'] != 'EPSG:6675':
         raise ValueError('Model A currently requires Japan Plane Rectangular CS VII (EPSG:6675)')
     config['numeric_features'],config['categorical_features']=load_model_config(project_path(config['model_config']))
-    allowed={'n_value','x','y','surface_z','depth','elevation','n_value_elevation','jshis_avs30','jshis_arv','slope','curvature','dem_missing'}
+    allowed={'n_value','x','y','surface_z','depth','elevation','sample_elevation','jshis_avs30','jshis_arv','slope','curvature','dem_missing'}
     if set(config['numeric_features'])-allowed or set(config['categorical_features'])-{'symbol','ser','jshis_jcode'}:
         raise ValueError('Model A currently supports geographic N-model features only; target-derived RBF is not implemented')
     config['validation']=validate_config(json.loads(project_path(config['validation_config']).read_text()))
@@ -133,7 +133,7 @@ def prepare(raw=None):
     if frame.empty: raise ValueError('No Model A observations within the configured DEM and training-depth range')
     geology,jshis=geographic_context(config,frame)
     frame=enrich(frame,config,dem,geology,jshis)
-    frame['n_value_elevation']=frame.surface_z-frame.depth
+    frame['sample_elevation']=frame.surface_z-frame.depth
     if 'n_value' in config['numeric_features']:
         from module.n_matching import prepare_n_data
         frame = prepare_n_data(frame,config,output,dem,geology,jshis)

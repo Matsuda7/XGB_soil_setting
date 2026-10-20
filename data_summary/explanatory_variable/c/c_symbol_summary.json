@@ -1,0 +1,26 @@
+{
+  "source": "data/training/c/model_A/model_dataset.csv",
+  "source_sha256": "a6339dbd42f07e033cac2fac957c6d727d981a24487bea5ccb7148a20dc21230",
+  "scope": "prepared c data before train/validation/test splitting",
+  "samples": 66,
+  "holes": 54,
+  "sites": 54,
+  "symbols": 8,
+  "missing_symbol_samples": 0,
+  "training_depth_limits": {
+    "training_min_depth_m": 0,
+    "training_max_depth_m": 10,
+    "include_n50": true
+  },
+  "crs": "EPSG:6675",
+  "colors": {
+    "Pg4_vis_al": "#1f77b4",
+    "H_sad": "#ff7f0e",
+    "Pg4_sns": "#2ca02c",
+    "H_ssd": "#d62728",
+    "Pg4_vas_al": "#9467bd",
+    "N1_soi": "#8c564b",
+    "N1_soss": "#e377c2",
+    "Q22_std": "#7f7f7f"
+  }
+}

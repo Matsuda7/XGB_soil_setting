@@ -10,7 +10,7 @@
 # N値モデルのSolphyJ標準採用
 
 2026-09-24：N値モデルの説明変数`surface_z`（地表面標高）を`depth`（地表面からの深度、m）に置き換えました。
-試料標高`n_value_elevation`とSolphyJの3物性は維持します。
+試料標高`sample_elevation`とSolphyJの3物性は維持します。
 学習時は各SPT試料の深度、全域予測時は`config/phi/prediction.json`の`prediction_depth_m`を使用します。
 地表面標高は試料標高・地形特徴量の計算用として保持しますが、モデルへ直接入力しません。
 以下の採用前比較のR²は置き換え前の結果であり、深度への変更後の精度は未評価です。

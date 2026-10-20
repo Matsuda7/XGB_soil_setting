@@ -66,6 +66,8 @@ def plot_maps(matrices,mask,config,output):
         extent=[(bounds['xmin']-half),(bounds['xmin']+(sampled.shape[1]-1)*config['display_spacing_m']+half),
                 (bounds['ymin']-half),(bounds['ymin']+(sampled.shape[0]-1)*config['display_spacing_m']+half)]
         image=ax.imshow(sampled,origin='lower',extent=extent,cmap='viridis_r',interpolation='nearest')
+        from module.observed_overlay import add_overlay
+        add_overlay(ax,image,kind,config,Path(output)/f'gamma_{kind}_observed_overlay.csv')
         ax.add_collection(LineCollection(segments,colors='#333333',linewidths=.6))
         fig.colorbar(image,ax=ax,label=f'γ_{kind} [kN/m³]',shrink=.8)
         label='Wet' if kind=='wet' else 'Dry'

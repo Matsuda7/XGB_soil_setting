@@ -142,7 +142,7 @@ def run_comparison(config,output):
     required={'n_measured','comparison_hole_id','source_boring_id','record_id'}
     if required-set(frame): raise ValueError('Rerun gamma preparation to add N correspondence columns')
     frame['boring_id']=frame.comparison_hole_id
-    frame['n_value_elevation']=frame.surface_z-frame.depth
+    frame['sample_elevation']=frame.surface_z-frame.depth
     numeric=options['numeric_features'];categorical=options['categorical_features']
     for name,table in [('SPT',spt),('density',frame)]:
         if set(numeric+categorical)-set(table): raise ValueError(f'{name}: unavailable N model features')

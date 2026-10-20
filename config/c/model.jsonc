@@ -2,7 +2,8 @@
   "numeric_features": [
     "x",
     "y",
-    "elevation",
+    "depth",
+    "sample_elevation",
     "slope",
     "curvature",
     "jshis_avs30",

@@ -227,7 +227,7 @@ def predict_grid(
                 f"{int(missing_terrain.sum()):,}",
             )
         chunk["depth"] = prediction_depth
-        chunk["n_value_elevation"] = chunk["surface_z"] - chunk["depth"]
+        chunk["sample_elevation"] = chunk["surface_z"] - chunk["depth"]
         enriched = attach_spatial_attributes(chunk, geology, jshis, config["grid_crs"])
         if use_soil_inventory:
             enriched = attach_soil_inventory(enriched, config['grid_crs'])
@@ -476,17 +476,8 @@ def save_plots(display_points: pd.DataFrame, config: dict) -> None:
     cmap = plt.get_cmap("viridis_r").copy()
     cmap.set_bad(color="white")
 
-    boreholes = load_shallowest_borehole_n(config["borehole_data"])
-    boreholes = boreholes.loc[
-        boreholes["x"].between(extent[0], extent[1])
-        & boreholes["y"].between(extent[2], extent[3])
-    ].copy()
     n_limits = (config["n_plot_min"], config["n_plot_max"])
-    # observed_n = boreholes["n_value"].to_numpy(dtype=float)
-    # n_limits = data_color_limits(observed_n)
     phi_limits = data_color_limits(phi)
-    # observed_phi = np.minimum(np.sqrt(15.0 * observed_n) + 15.0, PHI_MAX_DEG,)
-    # phi_limits = data_color_limits(observed_phi)
 
     plot_specs = [
         (
@@ -513,21 +504,10 @@ def save_plots(display_points: pd.DataFrame, config: dict) -> None:
             np.ma.masked_invalid(values), origin="lower", extent=extent, cmap=cmap,
             aspect="equal", vmin=limits[0], vmax=limits[1],
         )
-        if show_boreholes and not boreholes.empty:
-            ax.scatter(
-                boreholes["x"],
-                boreholes["y"],
-                c=boreholes["n_value"],
-                cmap=cmap,
-                norm=image.norm,
-                s=35,
-                marker="o",
-                edgecolors="black",
-                linewidths=0.5,
-                label="Shallowest borehole N-value",
-                zorder=5,
-            )
-            ax.legend(loc="best")
+        if show_boreholes:
+            from module.observed_overlay import add_overlay
+            boreholes = add_overlay(ax, image, 'n', config,
+                                    path.with_name('n_observed_overlay.csv'))
         fig.colorbar(image, ax=ax).set_label(label)
         ax.set_xlabel("X (m)")
         ax.set_ylabel("Y (m)")
@@ -536,7 +516,7 @@ def save_plots(display_points: pd.DataFrame, config: dict) -> None:
         fig.savefig(path, dpi=200, bbox_inches="tight")
         plt.close(fig)
     LOGGER.info(
-        "N-value plot range: %.4f to %.4f; shallowest borehole points: %d",
+        "N-value plot range: %.4f to %.4f; depth-selected observed points: %d",
         n_limits[0],
         n_limits[1],
         len(boreholes),

@@ -22,7 +22,7 @@ def train_selected(config, run):
     frame=frame.loc[frame.n_measured.notna() & frame[['gamma_'+kind for kind in selected_kinds(config)]].notna().any(axis=1)].copy()
     if frame.empty: raise ValueError('No primary density samples for predicted_n deployment')
     frame['boring_id']=frame.comparison_hole_id
-    frame['n_value_elevation']=frame.surface_z-frame.depth
+    frame['sample_elevation']=frame.surface_z-frame.depth
     spt=pd.read_csv(TRAINING/'gamma/n_spt.csv')
     numeric=options['numeric_features'];categorical=options['categorical_features']
     groups=frame.boring_id
@@ -88,7 +88,7 @@ def train_selected(config, run):
 def add_predicted_n(frame,artifact):
     models,transform,metrics=artifact
     frame=frame.copy()
-    frame['n_value_elevation']=frame.surface_z-frame.depth
+    frame['sample_elevation']=frame.surface_z-frame.depth
     samples=predict_ensemble(models,transform,frame,metrics['numeric_features'],metrics['categorical_features'])
     if not np.isfinite(samples).all():
         raise ValueError('Non-finite N predictions; gamma inference stopped')

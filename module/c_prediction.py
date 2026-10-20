@@ -36,7 +36,7 @@ def predict_grid(config,model,transform,metrics,output,n_artifact=None):
         if len(np.unique(flat))!=len(flat) or seen[yi,xi].any(): raise ValueError('Duplicate active grid coordinates')
         points['depth']=config['prediction_depth_m']
         frame=enrich(points,config,dem,geology,jshis)
-        frame['n_value_elevation']=frame.surface_z-frame.depth
+        frame['sample_elevation']=frame.surface_z-frame.depth
         if 'n_value' in config['numeric_features']:
             if n_artifact is None: raise ValueError('Missing upstream N model for c prediction')
             from module.gamma_predicted_n import add_predicted_n
@@ -65,18 +65,26 @@ def predict_grid(config,model,transform,metrics,output,n_artifact=None):
     if report['status']=='complete':
         if config.get('write_text_matrix',True):
             save_text_matrix(output/'c_effective_kpa.txt.gz',grid,mask)
-        stride=int(round(config['display_spacing_m']/spatial['grid_spacing_m']))
-        sampled=np.array(grid[::stride,::stride]);bounds=spatial['property_mask_bounds'];step=config['display_spacing_m'];half=step/2
-        if not np.isfinite(sampled).any(): raise ValueError('No populated display cells; reduce display_spacing_m')
-        extent=[bounds['xmin']-half,bounds['xmin']+(sampled.shape[1]-1)*step+half,
-                bounds['ymin']-half,bounds['ymin']+(sampled.shape[0]-1)*step+half]
-        fig,ax=plt.subplots(figsize=(8,8))
-        image=ax.imshow(sampled,origin='lower',extent=extent,cmap='viridis',interpolation='nearest')
-        ax.add_collection(LineCollection(boundary_segments(mask,bounds,spatial['grid_spacing_m']),colors='#333333',linewidths=.6))
-        fig.colorbar(image,ax=ax,label="Effective cohesion c' (kPa)",shrink=.8)
-        ax.set(title=f"Model A: Effective cohesion at depth {config['prediction_depth_m']:g} m",
-               xlabel='Y (m) — Japan Plane Rectangular CS VII',ylabel='X (m) — Japan Plane Rectangular CS VII',aspect='equal')
-        ax.ticklabel_format(axis='both',style='plain',useOffset=False)
-        fig.tight_layout();fig.savefig(output/'c_effective.png',dpi=180,bbox_inches='tight');plt.close(fig)
+        plot_grid(config, grid, mask, output)
     (output/'prediction_summary.json').write_text(json.dumps(report,indent=2)+'\n')
     return report
+
+
+def plot_grid(config, grid, mask, output):
+    """Render the c distribution from saved predictions without retraining."""
+    spatial = config['spatial']
+    stride=int(round(config['display_spacing_m']/spatial['grid_spacing_m']))
+    sampled=np.array(grid[::stride,::stride]);bounds=spatial['property_mask_bounds'];step=config['display_spacing_m'];half=step/2
+    if not np.isfinite(sampled).any(): raise ValueError('No populated display cells; reduce display_spacing_m')
+    extent=[bounds['xmin']-half,bounds['xmin']+(sampled.shape[1]-1)*step+half,
+            bounds['ymin']-half,bounds['ymin']+(sampled.shape[0]-1)*step+half]
+    fig,ax=plt.subplots(figsize=(8,8))
+    image=ax.imshow(sampled,origin='lower',extent=extent,cmap='viridis_r',interpolation='nearest')
+    from module.observed_overlay import add_overlay
+    add_overlay(ax,image,'c',config,output/'c_observed_overlay.csv')
+    ax.add_collection(LineCollection(boundary_segments(mask,bounds,spatial['grid_spacing_m']),colors='#333333',linewidths=.6))
+    fig.colorbar(image,ax=ax,label="Effective cohesion c' (kPa)",shrink=.8)
+    ax.set(title=f"Model A: Effective cohesion at depth {config['prediction_depth_m']:g} m",
+           xlabel='Y (m) — Japan Plane Rectangular CS VII',ylabel='X (m) — Japan Plane Rectangular CS VII',aspect='equal')
+    ax.ticklabel_format(axis='both',style='plain',useOffset=False)
+    fig.tight_layout();fig.savefig(output/'c_effective.png',dpi=180,bbox_inches='tight');plt.close(fig)

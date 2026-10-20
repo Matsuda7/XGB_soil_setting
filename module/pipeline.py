@@ -6,6 +6,7 @@ import json
 import traceback
 from module.paths import ROOT, CONFIG, RESULTS, project_path
 from module.collection import collect, missing_inputs
+from module.xgb_common import load_jsonc_config
 
 STAGES = ('collect', 'prepare', 'distribute')
 TARGETS = ('c', 'phi', 'gamma')
@@ -21,14 +22,14 @@ def resolve_targets(config, override=None):
     return tuple(dict.fromkeys(selected))
 
 
-def run(stage='all', targets=None, config_path=CONFIG / 'pipeline.json', download=False, gamma_kind=None):
+def run(stage='all', targets=None, config_path=CONFIG / 'pipeline.jsonc', download=False, gamma_kind=None):
     from module.output_layout import output_session
     with output_session(RESULTS):
         return _run(stage, targets, config_path, download, gamma_kind)
 
 
 def _run(stage, targets, config_path, download, gamma_kind):
-    config = json.loads(project_path(config_path).read_text(encoding='utf-8'))
+    config = load_jsonc_config(project_path(config_path))
     targets = resolve_targets(config, targets)
     if gamma_kind is not None and gamma_kind not in ('wet', 'dry'):
         raise ValueError('gamma_kind must be wet or dry')
@@ -119,12 +120,12 @@ def main(argv=None):
     parser.add_argument('--stage', choices=['all', *STAGES], default='all')
     parser.add_argument('--targets', choices=TARGETS, nargs='+', default=None, help='Override config targets (c, phi, gamma)')
     parser.add_argument('--gamma-kind', choices=('wet', 'dry'), help='Gamma target: wet (湿潤) or dry (乾燥); defaults to config/gamma/prediction.json')
-    parser.add_argument('--config', default=str(CONFIG / 'pipeline.json'))
+    parser.add_argument('--config', default=str(CONFIG / 'pipeline.jsonc'))
     parser.add_argument('--download', action='store_true', help='Refresh soil-test XML from KuniJiban during collection')
     parser.add_argument('--plan', action='store_true', help='Show stages and missing inputs without executing analysis')
     args = parser.parse_args(argv)
     try:
-        config = json.loads(project_path(args.config).read_text(encoding='utf-8'))
+        config = load_jsonc_config(project_path(args.config))
         if not isinstance(config, dict):
             raise ValueError('Pipeline config must be a JSON object')
         targets = resolve_targets(config, args.targets)

@@ -22,8 +22,8 @@ class TargetConfigTests(unittest.TestCase):
 
     def test_plan_and_cli_override(self):
         with tempfile.TemporaryDirectory() as tmp:
-            config = Path(tmp) / 'pipeline.json'
-            config.write_text('{"targets": ["gamma"]}')
+            config = Path(tmp) / 'pipeline.jsonc'
+            config.write_text('{"targets": [\n// "phi",\n"gamma",\n]}')
             for extra, expected in (([], ['gamma']), (['--targets', 'phi'], ['phi'])):
                 output = io.StringIO()
                 with contextlib.redirect_stdout(output), patch.object(pipeline, 'missing_inputs', return_value=[]), patch.object(pipeline, 'run') as run:
@@ -33,7 +33,7 @@ class TargetConfigTests(unittest.TestCase):
 
     def test_cli_uses_configured_target_for_execution(self):
         with tempfile.TemporaryDirectory() as tmp:
-            config = Path(tmp) / 'pipeline.json'
+            config = Path(tmp) / 'pipeline.jsonc'
             config.write_text('{"targets": ["phi"]}')
             with patch.object(pipeline, 'run', return_value=0) as run:
                 self.assertEqual(pipeline.main(['--config', str(config)]), 0)
@@ -41,7 +41,7 @@ class TargetConfigTests(unittest.TestCase):
 
     def test_invalid_configuration_stops_before_analysis(self):
         with tempfile.TemporaryDirectory() as tmp:
-            config = Path(tmp) / 'pipeline.json'
+            config = Path(tmp) / 'pipeline.jsonc'
             for contents in ('{"targets": []}', '{"targets": ["phii"]}', '[]', '{'):
                 config.write_text(contents)
                 with patch.object(pipeline, 'run') as run, contextlib.redirect_stderr(io.StringIO()):
@@ -53,8 +53,8 @@ class TargetConfigTests(unittest.TestCase):
     def test_run_dispatches_only_configured_target_and_reports_it(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            config = root / 'pipeline.json'
-            config.write_text('{"targets": ["gamma"]}')
+            config = root / 'pipeline.jsonc'
+            config.write_text('{"targets": [\n// "phi",\n"gamma",\n]}')
             with patch.object(pipeline, 'RESULTS', root), patch.object(pipeline, 'missing_inputs', return_value=[]), patch('module.distributions.distribute', return_value={'status': 'not_implemented'}) as dispatch:
                 self.assertEqual(pipeline.run(stage='distribute', config_path=config), 2)
                 dispatch.assert_called_once_with('gamma')

@@ -33,9 +33,9 @@ SOILTESTLISTの標準XMLであることを確認して、shear_strength_effectiv
 
 ## 説明変数と領域
 
-config/c/model.jsoncで、x、y、elevation、slope、curvature、jshis_avs30、symbol、jshis_jcode、n_valueを指定します。
-elevationは学習時にDEM標高−試料中央深度、予測時にDEM標高−指定深度です。
-地表標高・深度・ARVはcの直接の説明変数に入れません。
+config/c/model.jsoncで、x、y、depth、sample_elevation、slope、curvature、jshis_avs30、jshis_arv、symbol、jshis_jcode、n_valueを指定します。
+sample_elevationは学習時にDEM標高−試料中央深度、予測時にDEM標高−指定深度です。
+depthは地表からの深度（m）です。地表標高surface_zはcの直接の説明変数に入れません。
 n_valueは上流N値モデルの推定値です。cの評価領域にあるN測定孔は、評価孔・地域の除外後に上流N値からも外し、交差適合して生成します。上流モデル特徴量はconfig/c/n_model.jsoncでc専用に定義します。
 実測N値が同じ位置にないc試料も、予測N値を使って学習します。N値の直接対応有無でc試料を限定しません。実測N値が5孔未満しか対応しない場合は、実測Nを用いた比較評価を省略し、予測Nの条件で全c試料を評価します。実測Nが十分な孔に対応する場合のみ、同一試料による条件比較を行います。
 cの評価孔・地域は上流N値モデルからも除外し、学習側N値も交差適合で生成します。
@@ -73,4 +73,4 @@ c分布の実行で、実測Nが対応する孔数が孔単位評価に不足す
 このコード変更後のc学習・格子分布予測はまだ完了していません。格子予測は長時間かかるため、実行環境と時間を確保して上記コマンドを実行してください。
 
 
-学習深度範囲は`config/model.json`で設定し、φ・c・γで共通に適用します。共通の予測深度と空間条件は`config/prediction.json`に置き、c固有のチャンクや表示間隔は`config/c/prediction.json`に置きます。
+学習深度範囲は`config/model.json`で設定し、φ・c・γで共通に適用します。共通の予測深度は`config/model.json`、空間条件は`config/prediction.json`に置き、c固有のチャンクや表示間隔は`config/c/prediction.json`に置きます。

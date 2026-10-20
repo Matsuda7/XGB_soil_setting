@@ -21,15 +21,18 @@ class DepthDistributionTests(unittest.TestCase):
         self.assertEqual(config['categorical_features'], [])
 
     def test_depth_validation(self):
-        config = json.loads(Path('config/gamma/stage2_distribution.json').read_text())
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp)/'config.json'
-            for depth in (-1, float('nan'), True, '1'):
-                path.write_text(json.dumps(dict(config, prediction_depth_m=depth)))
-                with self.assertRaises(ValueError):
-                    load_config(path)
-            path.write_text(json.dumps(dict(config, prediction_depth_m=2.5)))
-            self.assertEqual(load_config(path)['prediction_depth_m'], 2.5)
+        from module.configuration import _read_json
+        for depth in (-1, float('nan'), True, '1', 2.5):
+            def read(path):
+                if path == 'config/model.json':
+                    return {'prediction_depth_m': depth, 'observed_depth_tolerance_m': 1.0}
+                return _read_json(path)
+            with patch('module.configuration._read_json', side_effect=read):
+                if depth == 2.5:
+                    self.assertEqual(load_config('config/gamma/stage2_distribution.json')['prediction_depth_m'], 2.5)
+                else:
+                    with self.assertRaises(ValueError):
+                        load_config('config/gamma/stage2_distribution.json')
 
     def test_soil_overlap_and_outside_remain_missing(self):
         soil = gpd.GeoDataFrame({'SSerGrCD': ['A', 'B']}, geometry=[box(0,0,2,2),box(1,0,3,2)], crs='EPSG:6675')

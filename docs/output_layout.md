@@ -30,7 +30,7 @@ results/
     run_summary.json           # 最後の統合コマンドの状態
 ```
 
-`config/pipeline.json` の `targets` でc・gamma・phiを選びます。
+`config/pipeline.jsonc` の `targets` でc・gamma・phiを選びます。
 `config/gamma/prediction.json` の `gamma_kind` で `wet`（湿潤）または `dry`（乾燥）を選びます。
 gammaの比較・学習・分布は選択した側だけ実行します。共通前処理では両方の学習用CSVを作成します。
 `--gamma-kind` を指定した場合のみconfigの選択を上書きします。

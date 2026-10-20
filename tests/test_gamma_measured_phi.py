@@ -27,7 +27,7 @@ class GammaMeasuredPhiTests(unittest.TestCase):
              patch('module.gamma_features.attach_spatial_attributes',side_effect=lambda frame,*args:frame), \
              patch('module.solphyj_features.attach_soil_inventory',side_effect=lambda frame,*args:frame.assign(soil_inventory_ssg='A')):
             result=enrich(pd.DataFrame({'x':[1.],'y':[2.],'depth':[3.]}),config,None,None,None)
-        self.assertEqual(result.n_value_elevation.iloc[0],7.)
+        self.assertEqual(result.sample_elevation.iloc[0],7.)
         self.assertEqual(result.soil_inventory_ssg.iloc[0],'A')
 
     def test_candidates_require_water_and_all_grains_in_same_record(self):

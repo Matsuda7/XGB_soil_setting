@@ -27,7 +27,7 @@ run_analysis.py                # 3段階を順に実行
 02_prepare_data.py             # 第2段階だけ実行
 03_create_distributions.py     # 第3段階だけ実行
 config/
-  pipeline.json               # 既存データの取込元・取込先
+  pipeline.jsonc               # 既存データの取込元・取込先
   phi/model.jsonc             # φ側の既存特徴量設定
   phi/prediction.json         # 予測格子・深度・出力設定
 module/                       # 関数・共通処理（解析の本体）
@@ -80,7 +80,7 @@ python run_analysis.py --plan
 python run_analysis.py
 ```
 
-出力対象は `config/pipeline.json` の `targets` で指定します。現在の設定はc（モデルA）・gamma・phiです。
+出力対象は `config/pipeline.jsonc` の `targets` で指定します。現在の設定はc（モデルA）・gamma・phiです。
 既存の `sources`・`soiltest_bbox` はそのままにして、この項目だけ編集してください。
 
 ```json
@@ -113,7 +113,7 @@ python run_analysis.py --stage distribute --targets phi
 
 ## 第1段階：収集とディスク共有
 
-`config/pipeline.json` の `sources` は初期取り込み完了後に空にしています。
+`config/pipeline.jsonc` の `sources` は初期取り込み完了後に空にしています。
 通常の収集段階では統合先 `data/raw/` の配置を確認します。追加の取込元がある場合は `sources` に登録してください。
 取り込みはハードリンク方式なので、同一ファイルシステム上では大容量データの実体を複製しません。
 統合先には通常のファイルとして存在し、元のフォルダ名に依存するシンボリックリンクではありません。
@@ -138,7 +138,7 @@ python run_analysis.py --stage collect --download
 通常の収集は既存データを再利用します。DEM・地質図・J-SHIS・ボーリングCSVは既存のローカル資産を取り込みます。
 出所や変換仕様が確定していないデータの自動ダウンロードは実装していません。
 予測格子 `output4.txt` と領域マスク `prop.txt` は今回の確認時に見つからず、配置待ちです。
-`data/raw/grid/` に配置するか、`config/pipeline.json` に取込元を登録してください。
+`data/raw/grid/` に配置するか、`config/pipeline.jsonc` に取込元を登録してください。
 DEMの元ファイル `Z.txt` は統合先では `z.txt` とします。
 
 ## 第2・第3段階の現状
@@ -212,12 +212,12 @@ propの範囲外は全体で24地点。試料深度別の試験は同じ孔・�
 
 コードを実装しましたが、今回の変更後の解析・学習・テストは未実行です。
 `python run_analysis.py` で収集・整理・学習・分布作成を順に実行します。
-現在の `config/pipeline.json` の targets は `["c"]` です。γのみなら `["gamma"]` に変更します。
+現在の `config/pipeline.jsonc` の targets は `["c"]` です。γのみなら `["gamma"]` に変更します。
 φも作成する場合は `["phi", "gamma"]` に変更します。cはCŪ・CDを使うモデルAを実装済みです（未実行）。
 
 説明変数は `config/gamma/model.jsonc` の x, y, depth, surface_z, slope,
 curvature, jshis_avs30, symbol, jshis_jcode。N値は使用しません。
-`config/gamma/prediction.json` の prediction_depth_m（初期値1m）を変更できます。
+`config/model.json` の prediction_depth_mを変更できます。
 湿潤・乾燥密度[g/cm³]を9.80665倍して単位体積重量[kN/m³]に変換し、`gamma_kind` で選んだ側だけ学習します。
 密度のみのXML試験も収集し、欠損・不正値・DEM範囲外の除外記録を残します。
 学習表は data/training/gamma/、モデルと結果は results/YYYYMMDD/gamma_wet/ または gamma_dry/ に保存します。
@@ -249,7 +249,7 @@ validation_sizeはtestを除いた残りに対する割合です。分割可能�
 
 ```text
 config/
-  pipeline.json          # 出力対象・収集設定
+  pipeline.jsonc          # 出力対象・収集設定
   spatial.json           # 共通の格子・DEM・prop・座標系
   test_locations.json    # c・γ共通の試験地点図
   c/                     # モデルAの予測・validation設定
@@ -318,7 +318,7 @@ c・φも含めて最初から実行する場合は `python run_analysis.py --ga
 ## 深度を指定する二段階の湿潤γモデル
 
 深度を加えた第一段階B・C・Dの疑似γを用い、第二段階のF4_AVS_JCODEにも深度を追加する独立コマンドです。
-`config/gamma/stage2_distribution.json` の `prediction_depth_m` に地表からの深度（m）を指定します。
+`config/model.json` の `prediction_depth_m` に地表からの深度（m）を指定します。
 
 ```bash
 python -m module.gamma_stage2_distribution --stage all
@@ -326,3 +326,14 @@ python -m module.gamma_stage2_distribution --stage all
 
 学習済みモデルから別の深度の分布を出す場合は、設定を変更して `--stage predict` を指定します。
 説明変数・評価結果・出力先は [二段階γの深度指定分布](docs/gamma_stage2_distribution.md) を参照してください。
+
+
+### 分布図の実測点
+
+N値・γ・cの予測深度は `config/model.json` の `prediction_depth_m`（m）で共通指定します。
+`observed_depth_tolerance_m`（m、初期値1.0）は、実測点を重ねる深度の許容幅です。
+予測深度±許容幅の両端を含め、同一座標では予測深度に最も近い試料を選び、同距離なら平均します。
+学習用に絞る前の元実測データを使用します。ただし値・深度・座標が不正な試料は除外し、cは有効粘着力、γは密度から換算した対象の湿潤／乾燥単位体積重量を使用します。
+地図内の実測値を背景と同じカラーマップ・色範囲の黒縁●で表示します。色範囲外の値もCSVには元の値を保存します。
+表示点は図と同じディレクトリの `*_observed_overlay.csv` に保存します。これは独立した精度検証ではありません。
+既存の予測結果はその計算深度を確認してから再描画してください。深度が異なる場合は予測の再計算が必要です。

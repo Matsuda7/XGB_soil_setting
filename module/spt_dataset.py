@@ -149,12 +149,12 @@ def merge_measurements_and_attributes(
         )
         result = result.loc[~unmatched].copy()
     result = result.drop(columns="_merge")
-    result["n_value_elevation"] = result["surface_z"] - result["depth"]
-    result["lowest_spt_elevation"] = result.groupby("boring_id")["n_value_elevation"].transform(
+    result["sample_elevation"] = result["surface_z"] - result["depth"]
+    result["lowest_spt_elevation"] = result.groupby("boring_id")["sample_elevation"].transform(
         "min"
     )
     result["distance_to_lowest_spt"] = (
-        result["n_value_elevation"] - result["lowest_spt_elevation"]
+        result["sample_elevation"] - result["lowest_spt_elevation"]
     )
     result["geology_missing"] = result[["symbol", "ser"]].isna().all(axis=1)
     result["jshis_missing"] = ~result["jshis_matched"].astype("boolean").fillna(False).astype(bool)
@@ -176,7 +176,7 @@ def merge_measurements_and_attributes(
         "y",
         "surface_z",
         "depth",
-        "n_value_elevation",
+        "sample_elevation",
         "lowest_spt_elevation",
         "distance_to_lowest_spt",
         "n_value",
@@ -256,7 +256,7 @@ def print_summary(
                 "surface_z",
                 "slope",
                 "curvature",
-                "n_value_elevation",
+                "sample_elevation",
                 "lowest_spt_elevation",
                 "distance_to_lowest_spt",
                 "n_value",

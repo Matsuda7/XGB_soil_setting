@@ -1,4 +1,3 @@
 {
-  "spatial_config": "config/spatial.json",
-  "prediction_depth_m": 5.0
+  "spatial_config": "config/spatial.json"
 }

@@ -180,7 +180,7 @@ X Y legacy_surface_z legacy_bedrock_z
 - 負のN値を除外
 - 50を超えるN値を50へ打止め
 - `01`で保持したKuniJiban孔口標高`borehole_surface_z`とDEM特徴量を引き継ぐ
-- `n_value_elevation = surface_z - depth`を計算
+- `sample_elevation = surface_z - depth`を計算
 
 `depth`は測定点標高の計算と監査には使用しますが、XGBoostの特徴量には使用しません。`lowest_spt_elevation`と`distance_to_lowest_spt`は監査用であり、地質学的な基盤を意味せず、モデル特徴量には使用しません。
 
@@ -201,7 +201,7 @@ X Y legacy_surface_z legacy_bedrock_z
 | `surface_z` | DEM地表面標高 | 数値 | m |
 | `slope` | DEM勾配 | 数値 | degree |
 | `curvature` | DEMラプラシアン曲率 | 数値 | 1/m |
-| `n_value_elevation` | N値測定・予測点標高 | 数値 | m |
+| `sample_elevation` | N値測定・予測点標高 | 数値 | m |
 | `jshis_avs30` | 平均S波速度AVS30 | 数値 | m/s |
 | `jshis_arv` | 地盤増幅率ARV | 数値 | 無次元 |
 | `symbol` | GSJ地質凡例記号 | カテゴリ | One-Hot Encoding |
@@ -231,7 +231,7 @@ jshis_missing
     "x",
     "y",
     "surface_z",
-    "n_value_elevation"
+    "sample_elevation"
   ],
   "categorical_features": ["symbol", "jshis_jcode"]
 }
@@ -294,7 +294,7 @@ N値の学習目標と予測値は0～50です。`n_plot_max = 62`は画像カ�
 
 - DEMの出典・製品名・取得日・加工履歴は未記録です。研究利用前に必ず明記してください。
 - DEM範囲外またはDEM近傍に欠損があるボーリング孔は学習対象から除外されます。
-- `n_value_elevation`はDEM標高とKuniJiban測定深度から再計算します。
+- `sample_elevation`はDEM標高とKuniJiban測定深度から再計算します。
 - N値は50で打ち止めるため、モデルは50を超える値を表現しません。
 - 孔単位ランダム分割は同一孔内の情報漏洩を防ぎますが、近接する別孔が学習側とテスト側へ分かれる可能性があります。
 - 10 m間隔で出力しても、GSJ地質図、J-SHIS 250 m属性、ボーリング孔密度を超える実質的な空間精度を保証しません。
@@ -329,7 +329,7 @@ N値の学習目標と予測値は0～50です。`n_plot_max = 62`は画像カ�
 `model/artifacts/model_config.json` に使用設定、`model/artifacts/training_depth_filter.json` と `model/artifacts/metrics.json` に深度条件と抽出前後の件数を保存します。
 保存済みモデルの全実測比較図を再作成するときも、そのモデルに保存された上下限を使用します。
 
-分布を計算する深度は別設定です。`config/phi/prediction.json` の `prediction_depth_m` で指定します。
+分布を計算する深度は別設定です。`config/model.json` の `prediction_depth_m` で指定します。
 
 ```bash
 python 03_create_distributions.py --targets phi
@@ -385,4 +385,4 @@ python 03_create_distributions.py --targets phi
 修正理由: 指標CSVだけで解析条件を比較・追跡できるようにするためです。過去結果の再出力には実行時の保存設定を使用し、現在の設定ファイルは読みません。古い結果に記録がない設定はnullまたは空欄です。
 
 
-学習に使う深度範囲とN=50の扱いは対象間で揃えるため、`config/model.json`で設定します。φの説明変数は`config/phi/model.jsonc`に置きます。予測深度と空間条件は共通の`config/prediction.json`を使い、φ固有の表示・入出力設定は`config/phi/prediction.json`に置きます。
+学習に使う深度範囲とN=50の扱いは対象間で揃えるため、`config/model.json`で設定します。φの説明変数は`config/phi/model.jsonc`に置きます。予測深度は`config/model.json`、空間条件は共通の`config/prediction.json`を使い、φ固有の表示・入出力設定は`config/phi/prediction.json`に置きます。

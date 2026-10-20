@@ -83,7 +83,7 @@ TERRAIN_NUMERIC_FEATURES = ["slope", "curvature", "dem_missing"]
 # Depth and measurement elevation describe the vertical position.
 # Borehole-bottom-derived predictors are intentionally excluded.
 SELECTED_ADDITIONAL_NUMERIC_FEATURES = [
-    "n_value_elevation", "jshis_arv",
+    "sample_elevation", "jshis_arv",
 ]
 SELECTED_ADDITIONAL_CATEGORICAL_FEATURES = ["ser"]
 
@@ -92,7 +92,7 @@ FEATURE_LABELS = {
     "y": "Y coordinate (EPSG:6675)",
     "surface_z": "Ground-surface elevation",
     "depth": "Depth below ground surface (m)",
-    "n_value_elevation": "SPT measurement elevation",
+    "sample_elevation": "Sample elevation",
     "jshis_avs30": "J-SHIS average S-wave velocity to 30 m (AVS30)",
     "jshis_arv": "J-SHIS surface amplification from Vs=400 m/s (ARV)",
     "symbol": "GSJ geological class",

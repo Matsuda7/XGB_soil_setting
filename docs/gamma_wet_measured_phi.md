@@ -6,9 +6,9 @@
 - `config/gamma/n_comparison.json`: `enabled=false`。予測N値の追加や実測N値の対応有無による絞り込みを行いません。
 - `config/gamma/model.jsonc`: 変更時点のφと同じ説明変数を指定。
 
-数値変数：depth、jshis_avs30、jshis_arv、slope、curvature、n_value_elevation。
+数値変数：depth、jshis_avs30、jshis_arv、slope、curvature、sample_elevation。
 カテゴリ変数：symbol、jshis_jcode、soil_inventory_ssg。
-`n_value_elevation` はφと列名を合わせた試料標高（DEM地表標高−深度）であり、N値を使って計算する変数ではありません。
+`sample_elevation` は各推定モデルで共通の試料標高（DEM地表標高−深度）であり、N値を使って計算する変数ではありません。
 x・yは座標付与や空間分割には使いますが、現在は説明変数には入れません。代表粒度・含水比・予測N値は説明変数に含めません。
 土壌分類の空間結合はφと同じ処理を使い、未取得・競合はUNKNOWNとします。カテゴリのone-hot化と数値の中央値補完は学習部分で適合します。
 

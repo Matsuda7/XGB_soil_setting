@@ -37,7 +37,7 @@ def enrich(points, config, dem, geology, jshis):
     terrain = terrain_at(frame, dem, config)
     frame[terrain.columns] = terrain
     frame['elevation'] = frame.surface_z-frame.depth
-    frame['n_value_elevation'] = frame['elevation']
+    frame['sample_elevation'] = frame['elevation']
     frame = attach_spatial_attributes(frame, geology, jshis, config['spatial']['grid_crs'])
     if 'soil_inventory_ssg' in config.get('categorical_features', []):
         from module.solphyj_features import attach_soil_inventory

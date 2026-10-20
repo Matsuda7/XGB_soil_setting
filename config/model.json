@@ -1,5 +1,7 @@
 {
   "training_min_depth_m": 0,
   "training_max_depth_m": 10,
-  "include_n50": true
+  "include_n50": true,
+  "prediction_depth_m": 5.0,
+  "observed_depth_tolerance_m": 1.0
 }

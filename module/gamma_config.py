@@ -5,7 +5,7 @@ from module.paths import CONFIG, project_path
 from module.xgb_common import load_model_config
 
 KINDS = ('wet', 'dry')
-NUMERIC = {'n_value_elevation','n_value','x','y','depth','surface_z','elevation','slope','curvature','jshis_avs30','jshis_arv','dem_missing'}
+NUMERIC = {'sample_elevation','n_value','x','y','depth','surface_z','elevation','slope','curvature','jshis_avs30','jshis_arv','dem_missing'}
 CATEGORICAL = {'symbol','jshis_jcode','ser','soil_inventory_ssg'}
 
 
