@@ -127,7 +127,7 @@ XMLダウンローダーは一時ファイルから置き換える方式で、�
 元データ取り込み後の解析は、このプロジェクト内のファイルだけを参照します。
 旧 `XGB_c_setting`・`XGB_phi_setting` はユーザーの指示で削除済みです。
 統合済み384ファイルは削除前後にSHA-256を検証しています。収集履歴の旧パスは来歴として保持します。
-互換用の `input_xml` リンクも統合先の `data/raw/soiltest` を参照します。
+取得一覧は `data/boring/boring_list.csv` に保存します。互換用の `data/input_xml` リンクは `data/raw/soiltest` を参照します（XML実体は移動しません）。
 
 KuniJibanのXMLを追加取得する場合:
 

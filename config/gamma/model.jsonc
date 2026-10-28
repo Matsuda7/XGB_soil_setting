@@ -1,13 +1,14 @@
 {
   "numeric_features": [
-    "x",
-    "y",
+    // "x",
+    // "y",
     "depth",
-    // "jshis_avs30",
-    // "jshis_arv",
+    "sample_elevation",
     "slope",
     "curvature",
-    "sample_elevation"
+    // "jshis_avs30",
+    // "jshis_arv"
+    "n_value"
   ],
   "categorical_features": [
     "symbol",

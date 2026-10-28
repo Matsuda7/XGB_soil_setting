@@ -13,7 +13,8 @@ def distribute(config=None,max_chunks=None):
     kind = selected_kinds(config)[0]
     run = create_target_directory('gamma_' + kind)
     config['output_dir'] = str(run)
-    (run/'config.json').write_text(json.dumps(config,ensure_ascii=False,indent=2)+'\n')
+    from module.config_snapshot import write_config_snapshot
+    write_config_snapshot(config, run, 'gamma')
     status={'status':'running','gamma_kind':kind,'run':run.name,'prediction_depth_m':config['prediction_depth_m']}
     try:
         from module.paths import TRAINING

@@ -33,7 +33,7 @@ def load_config():
         raise ValueError('Model A currently requires Japan Plane Rectangular CS VII (EPSG:6675)')
     config['numeric_features'],config['categorical_features']=load_model_config(project_path(config['model_config']))
     allowed={'n_value','x','y','surface_z','depth','elevation','sample_elevation','jshis_avs30','jshis_arv','slope','curvature','dem_missing'}
-    if set(config['numeric_features'])-allowed or set(config['categorical_features'])-{'symbol','ser','jshis_jcode'}:
+    if set(config['numeric_features'])-allowed or set(config['categorical_features'])-{'symbol','ser','jshis_jcode','soil_inventory_ssg'}:
         raise ValueError('Model A currently supports geographic N-model features only; target-derived RBF is not implemented')
     config['validation']=validate_config(json.loads(project_path(config['validation_config']).read_text()))
     from module.n_comparison_config import load_options
@@ -237,7 +237,8 @@ def distribute():
     config = load_config()
     run = create_target_directory('c')
     config['output_dir'] = str(run)
-    (run/'config.json').write_text(json.dumps(config,indent=2,default=str)+'\n')
+    from module.config_snapshot import write_config_snapshot
+    write_config_snapshot(config, run, 'c')
     status={'status':'running','model':'A','run':run.name,'target':"effective cohesion c'",'unit':'kPa'}
     try:
         preparation=json.loads((TRAINING/'c/model_A/preparation_summary.json').read_text())

@@ -52,7 +52,7 @@ def collect(config: dict, download: bool = False) -> dict:
     if download:
         from module.download import main
         main(['--output-dir', str(RAW / 'soiltest/strength'),
-              '--metadata-dir', str(RAW / 'soiltest/metadata'), '--log-dir', str(LOGS),
+              '--metadata-dir', str(ROOT / 'data/boring'), '--log-dir', str(LOGS),
               '--bbox', config['soiltest_bbox']])
     manifest_path = RAW / 'collection_manifest.json'
     previous = json.loads(manifest_path.read_text(encoding='utf-8')) if manifest_path.is_file() else {'files': []}

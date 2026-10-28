@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 import requests
-from module.paths import RAW, LOGS
+from module.paths import ROOT, RAW, LOGS
 
 
 BASE_URL = "https://www.kunijiban.pwri.go.jp/viewer"
@@ -27,7 +27,7 @@ SEARCH_URL = f"{BASE_URL}/server/search.php"
 XML_URL_TEMPLATE = f"{BASE_URL}/refer/?data=soiltest&type=xml&id={{}}"
 DEFAULT_BBOX = "37.60,136.50,36.90,137.50"  # north, west, south, east; Noto area
 DEFAULT_OUTPUT_DIR = RAW / "soiltest/strength"
-DEFAULT_METADATA_DIR = RAW / "soiltest/metadata"
+DEFAULT_METADATA_DIR = ROOT / "data/boring"
 DEFAULT_LOG_DIR = LOGS
 DEFAULT_DELAY = 2.5
 PAGE_SIZE = 30

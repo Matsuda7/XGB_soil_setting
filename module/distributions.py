@@ -8,7 +8,8 @@ def distribute(target, gamma_kind=None):
         import json
         output = create_target_directory('phi')
         config = phi_prediction.load_prediction_config(phi_prediction.DEFAULT_CONFIG, output)
-        (output / 'config.json').write_text(json.dumps(config, default=str, indent=2) + '\n')
+        from module.config_snapshot import write_config_snapshot
+        write_config_snapshot(config, output, 'phi')
         status = {'status': 'running', 'output': str(output)}
         try:
             phi_training.main(output / 'model')

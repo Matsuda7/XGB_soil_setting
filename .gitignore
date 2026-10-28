@@ -25,9 +25,6 @@ data/**
 results/**
 !results/**/
 !results/**/.gitkeep
-/input_xml
-input_xml/*
-!input_xml/.gitkeep
 metadata/*
 !metadata/.gitkeep
 logs/*

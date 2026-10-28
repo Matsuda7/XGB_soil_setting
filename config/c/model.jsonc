@@ -1,17 +1,18 @@
 {
   "numeric_features": [
-    "x",
-    "y",
+    // "x",
+    // "y",
     "depth",
     "sample_elevation",
     "slope",
     "curvature",
     "jshis_avs30",
-    "n_value",
-    "jshis_arv"
+    "jshis_arv",
+    "n_value"
   ],
   "categorical_features": [
     "symbol",
-    "jshis_jcode"
+    "jshis_jcode",
+    "soil_inventory_ssg"
   ]
 }

@@ -63,3 +63,8 @@ c・gammaのテキスト出力は各 `prediction.json` の `write_text_matrix` �
 | logs/ | 実行ログ |
 
 2026-09-18に過去の生成結果、中間・学習データ、キャッシュ、ログを削除しました。元データと設定は保持しています。
+
+
+### 実行設定の保存
+
+c・γ・φは実行ディレクトリの `config.json` に、予測設定に加えて `model_settings`、`numeric_features`、`categorical_features`、`validation`、`xgb_parameters`、`spatial`、`output_dir` を同じ形式で保存します。値は各対象で使用する設定です。φはN値学習の設定を記録し、γの `predicted_n` では実際に追加する `n_value` も記録します。保存は学習前に行い、既存の結果ファイルは書き換えません。
