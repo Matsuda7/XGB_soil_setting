@@ -1,0 +1,115 @@
+{
+  "models": [
+    "xgboost",
+    "tabpfn"
+  ],
+  "random_state": 42,
+  "crs": "EPSG:6675",
+  "block_size_m": 10000,
+  "n_splits": 5,
+  "training_depth_m": [
+    0,
+    10
+  ],
+  "include_n50": true,
+  "batch_size": 256,
+  "save_plots": true,
+  "xgboost": {
+    "objective": "reg:squarederror",
+    "n_estimators": 500,
+    "learning_rate": 0.03,
+    "max_depth": 6,
+    "min_child_weight": 3,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "reg_lambda": 1,
+    "tree_method": "hist",
+    "n_jobs": 4
+  },
+  "tabpfn": {
+    "model_path": "data/models/tabpfn/tabpfn-v3.5-fast-20260909.safetensors",
+    "device": "cpu",
+    "n_estimators": 8,
+    "n_jobs": 1,
+    "model_version": "v3.5-fast",
+    "cpu_threads": null,
+    "predict_batch_size": 256
+  },
+  "distribution": {
+    "enabled": false,
+    "depth_m": 5,
+    "chunk_size": 10000,
+    "feature_csv": null
+  },
+  "targets": {
+    "c": {
+      "data": "data/training/c/model_A/model_dataset.csv",
+      "numeric_features": [
+        "x",
+        "y",
+        "depth",
+        "sample_elevation",
+        "slope",
+        "curvature",
+        "jshis_avs30",
+        "jshis_arv"
+      ],
+      "categorical_features": [
+        "symbol",
+        "jshis_jcode"
+      ]
+    },
+    "N": {
+      "data": "data/training/phi/model_dataset.csv",
+      "numeric_features": [
+        "x",
+        "y",
+        "depth",
+        "sample_elevation",
+        "slope",
+        "curvature",
+        "jshis_avs30",
+        "jshis_arv"
+      ],
+      "categorical_features": [
+        "symbol",
+        "jshis_jcode"
+      ]
+    },
+    "gamma_wet": {
+      "data": "data/training/gamma/wet.csv",
+      "numeric_features": [
+        "x",
+        "y",
+        "depth",
+        "sample_elevation",
+        "slope",
+        "curvature",
+        "jshis_avs30",
+        "jshis_arv"
+      ],
+      "categorical_features": [
+        "symbol",
+        "jshis_jcode"
+      ]
+    },
+    "gamma_dry": {
+      "data": "data/training/gamma/dry.csv",
+      "numeric_features": [
+        "x",
+        "y",
+        "depth",
+        "sample_elevation",
+        "slope",
+        "curvature",
+        "jshis_avs30",
+        "jshis_arv"
+      ],
+      "categorical_features": [
+        "symbol",
+        "jshis_jcode"
+      ]
+    }
+  },
+  "data_kind": "observed"
+}

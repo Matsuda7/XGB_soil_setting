@@ -1,0 +1,7 @@
+{
+  "tabpfn": {
+    "cpu_threads": null,
+    "device": "cpu",
+    "predict_batch_size": 256
+  }
+}

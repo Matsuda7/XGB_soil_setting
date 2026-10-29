@@ -1,0 +1,40 @@
+#!/bin/bash
+#PBS -N tabpfn_cpu
+#PBS -l nodes=1:ppn=8
+#PBS -l walltime=24:00:00
+#PBS -j oe
+
+# Torque directives are literal: change ppn/walltime above before submission.
+# Do not use multiple nodes: this job runs one Python process.
+set -euo pipefail
+cd "${PBS_O_WORKDIR:?Submit from the repository root}"
+test -f run_analysis.py || { echo 'PBS_O_WORKDIR must be the repository root' >&2; exit 1; }
+test -n "${PBS_JOBID:-}" || { echo 'This script requires a PBS allocation' >&2; exit 1; }
+
+# Set an existing environment explicitly; no installation or activation here.
+PYTHON_BIN="${PYTHON_BIN:-$PBS_O_WORKDIR/.venv-tabpfn-fast/bin/python}"
+test -x "$PYTHON_BIN" || { echo "Python executable not found: $PYTHON_BIN" >&2; exit 1; }
+mkdir -p logs/pbs
+LOG_ID="${PBS_JOBID//[^a-zA-Z0-9_.-]/_}.$(date +%Y%m%dT%H%M%S).$$"
+exec >"logs/pbs/$LOG_ID.out" 2>"logs/pbs/$LOG_ID.err"
+echo "PBS_JOBID=$PBS_JOBID PBS_NP=${PBS_NP:-unset} PBS_NODEFILE=${PBS_NODEFILE:-unset}"
+echo "Python=$PYTHON_BIN workdir=$PWD"
+
+# cpu_threads=null uses the local PBS allocation, capped by affinity.
+# Python sets OMP/MKL/OPENBLAS before importing numerical libraries.
+case "${JOB_STAGE:-compare}" in
+  compare)
+    exec "$PYTHON_BIN" run_analysis.py --stage compare \
+      --models tabpfn \
+      --comparison-config "${TABPFN_CONFIG:-config/comparison.orca.json}"
+    ;;
+  tabpfn)
+    # Requires completed comparison and prepared geographic feature cache.
+    # This does not clear STOP_TABPFN. Explicit resume must be requested separately.
+    exec "$PYTHON_BIN" run_distribution.py --stage tabpfn \
+      --comparison-run "${COMPARISON_RUN:?Set the completed comparison directory}" \
+      --output "${DISTRIBUTION_OUTPUT:?Set the prepared distribution directory}" \
+      --runtime-config "${TABPFN_RUNTIME_CONFIG:-config/tabpfn_cpu.json}"
+    ;;
+  *) echo 'JOB_STAGE must be compare or tabpfn' >&2; exit 1 ;;
+esac

@@ -1,0 +1,5 @@
+# Optional: install in a separate virtual environment. Base requirements unchanged.
+-r requirements.txt
+tabpfn==2.2.1
+torch>=2.1,<3
+scikit-learn>=1.5,<1.7

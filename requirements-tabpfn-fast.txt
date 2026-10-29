@@ -1,0 +1,4 @@
+# Separate environment for the explicitly selected 3.5-Fast model.
+-r requirements.txt
+tabpfn==9.2.0
+torch>=2.5,<3

@@ -337,3 +337,121 @@ N値・γ・cの予測深度は `config/model.json` の `prediction_depth_m`（m
 地図内の実測値を背景と同じカラーマップ・色範囲の黒縁●で表示します。色範囲外の値もCSVには元の値を保存します。
 表示点は図と同じディレクトリの `*_observed_overlay.csv` に保存します。これは独立した精度検証ではありません。
 既存の予測結果はその計算深度を確認してから再描画してください。深度が異なる場合は予測の再計算が必要です。
+
+## XGBoostとTabPFNの比較
+
+既存解析を維持したまま `python run_analysis.py --stage compare` で比較経路を実行できます。
+設定は `config/comparison.json`、導入・空間CV条件・容量制限・分布推定・検証は
+[TabPFN比較ガイド](docs/tabpfn_comparison.md) を参照してください。
+TabPFNは任意依存で、`--models xgboost` は未導入環境でも使用できます。
+
+10 m全域分布の長時間実行・停止/再開・完成状態の確認は
+[10 m分布ガイド](docs/full_distribution_10m.md) を参照してください。
+
+解析はコマンド実行時だけ開始します。`python run_distribution.py --help` で分布用CLIを確認でき、`--plan` は解析を行いません。停止済みTabPFNの再開には `--resume` を明示します。
+
+## TabPFNのCPUスレッド設定とorca（Torque PBS）
+
+CPU用の共通設定を追加しました。以下は**利用者が後で実行するコマンド例**です。
+今回の変更では解析・テスト実行・環境導入・重み取得・ジョブ投入を行っていません。
+
+`config/comparison.json` の `tabpfn` に設定します（モデル選択は従来どおり `models` / `--models`）。
+
+```json
+{
+  "cpu_threads": 8,
+  "device": "cpu",
+  "predict_batch_size": 1000
+}
+```
+
+- `cpu_threads` は1以上の整数、または `null`。0・負数・小数・文字列・真偽値はエラーです。
+- `null` はPBS割当を優先し、PBS外ではCPUアフィニティとOS CPU数から決定します。
+  明示値もPBS割当・アフィニティ・OS CPU数を上限に制限し、制限時は警告とログを残します。
+- `PBS_NODEFILE` は実行ホストの行数を数えます。複数ノードの合計を1プロセスに割り当てません。
+  `PBS_NP` もあれば小さい方を採用します。PBS割当が不明、ノードファイルが読めない、
+  実行ホストが含まれない場合は安全のため停止します。付属PBSスクリプトは1ノード専用です。
+- CLI起動時、NumPy/PyTorch等のimport前に `OMP_NUM_THREADS`、`MKL_NUM_THREADS`、
+  `OPENBLAS_NUM_THREADS` を設定し、モデル作成・復元時に `torch.set_num_threads` を適用します。
+  Pythonから直接モジュールを呼ぶ場合はimport順序に注意してください。遅い初期化は警告します。
+- `device` は `auto`（CUDA優先、利用不可ならCPU）、`cpu`、`cuda`（CUDA不可ならエラー）。
+  CPUスレッド設定はGPU計算自体を高速化する設定ではありません。
+- `predict_batch_size` は1以上の整数。従来の `batch_size` よりTabPFN用設定を優先します。
+  全域CLIの `--batch-size` はさらに優先します。省略時の従来値は256です。
+
+既存v2モデルをCPUで使用する場合（既存の別環境・ローカル重みが必要）：
+
+```bash
+python run_analysis.py --stage compare --models tabpfn --comparison-config config/comparison.json
+```
+
+CPU向けの新規比較には `config/comparison.orca.json` を用意しました。
+この設定は明示的に3.5-Fastを選び、CPU・スレッド自動・バッチ256を使用します。
+公式の [3.5-Fast API](https://github.com/PriorLabs/TabPFN/blob/v9.2.0/src/tabpfn/regressor.py) と
+[依存関係](https://github.com/PriorLabs/TabPFN/blob/v9.2.0/pyproject.toml) に基づき、
+`requirements-tabpfn-fast.txt` は `tabpfn==9.2.0`、PyTorch 2.5以上を指定しています。
+Python 3.10以上の**別環境**が必要です。既存の2.2.1環境・`requirements-tabpfn.txt` は変更しません。
+実際の依存関係解決・モデル実行は未検証です。
+
+```bash
+/path/to/fast-env/bin/python run_analysis.py --stage compare --models xgboost tabpfn --comparison-config config/comparison.orca.json
+```
+
+モデル重みは `data/models/tabpfn/tabpfn-v3.5-fast-20260909.safetensors` に事前配置してください。
+[公式の利用条件・認証・オフライン手順](https://docs.priorlabs.ai/models/accessing-model-weights) を確認して準備します。
+コードはローカルファイルがなければ停止します。保存モデルの復元時も元の重みのパスを確認します。
+今回、利用条件の代理同意・認証・ダウンロードはしていません。
+既存v2の比較結果・学習済み状態をFastに切り替えて再開することはできません。Fastでは新規CVを実施し、
+同じモデルで分布推定してください。モデル変更による精度差とスレッド変更による速度差は別に評価します。
+
+orcaではリポジトリ直下から、準備済みPython環境を指定します。
+`#PBS -l nodes=1:ppn=8` と `walltime` はスクリプト先頭で編集してください。
+`cpu_threads=null` ならPython側も割当数を使用します（アフィニティが小さければその数まで）。
+メモリ資源の指定方法・上限はorcaの運用規則に合わせて追記してください。
+
+```bash
+qsub -v PYTHON_BIN=/absolute/path/to/fast-env/bin/python scripts/orca_tabpfn_cpu.pbs
+```
+
+付属スクリプトの既定動作はTabPFN単独のCVです。標準出力・標準エラーは `logs/pbs/` にジョブID・時刻別に保存し、
+Python起動前のエラーはPBS標準ログに残ります。スクリプトはパッケージ導入をしません。
+
+既に比較が完了し、共通の地理特徴量キャッシュを準備してある10 m全域分布には次を使用します。
+`config/tabpfn_cpu.json` は実行資源だけの上書き用です。元のCVモデル・特徴量・単位・メッシュを変更しません。
+
+```bash
+python run_distribution.py --stage tabpfn \
+  --comparison-run results/YYYYMMDD/comparison/RUN_ID \
+  --output results/YYYYMMDD/distribution_10m_5m \
+  --runtime-config config/tabpfn_cpu.json
+
+qsub -v PYTHON_BIN=/absolute/path/to/env/bin/python,JOB_STAGE=tabpfn,COMPARISON_RUN=results/YYYYMMDD/comparison/RUN_ID,DISTRIBUTION_OUTPUT=results/YYYYMMDD/distribution_10m_5m scripts/orca_tabpfn_cpu.pbs
+```
+
+重みと同じバージョンのPython環境を選んでください。停止フラグがある場合は自動で再開しません。
+利用者が再開を決めたときだけ直接CLIに `--resume` を付けます。
+新規全域分布の準備は [10 m分布ガイド](docs/full_distribution_10m.md) を参照してください。
+
+CPUスレッド数は同時に働くソフトウェアの実行単位数であり、物理コア数と同じとは限りません。
+OSやPBSが示す数には論理CPUが含まれる場合があります。増やせば比例して速くなるとは限らず、
+メモリ帯域やスレッド間の競合が律速になります。追加のプロセス並列は導入せず、TabPFNの前処理並列数も1です。
+PyTorchのinter-opスレッド数やプロセス全体の全スレッド数を指定する機能ではありません。
+
+約2,000万点は既存のチャンク読み込み・memmap・バッチ推論を継続使用します。
+バッチを小さくしても学習データ・モデル・前処理・地図マスクのメモリは必要です。
+CPUでは長時間かかる可能性があり、スレッド並列だけで実用時間内の完了は保証できません。
+モデルの学習行数・特徴量数の制限は維持し、超過時にデータ削減や制限解除はしません。
+v2のN評価が容量制限で失敗する場合、スレッドを増やしても解消しません。
+Fastも公式APIのCPU容量検査に従います。N評価が成功するとは未検証のため断定しません。
+スレッド・デバイス・バッチ数の変更による浮動小数点差は未検証です。
+厳密な再現性が必要な実行ではこれらの条件も固定し、途中で変更しないでください。
+
+実行時は各モデル出力内の `runtime.jsonl` と `prediction_runtime.jsonl` に
+設定スレッド数・適用値・PyTorch実値・PBS割当・アフィニティ・モデル・デバイス・バッチ数・
+処理点数・推論秒数・点/秒を追記します。全域の総点数は開始ログと既存の進捗JSONに残します。
+既存の結果・ログを今回削除・上書きしていません。
+
+XGBoost単独ではTabPFN/PyTorchを読み込まず、CPU環境変数も変更しません。
+両モデルを同一プロセスで比較する場合はBLAS環境設定がプロセス共通になりますが、
+XGBoostのパラメータ、N・c・γの推定式、CV分割、欠損値処理は変更していません。
+今回の変更ファイルと未検証事項は [作業記録](docs/tabpfn_cpu_implementation.md) を参照してください。

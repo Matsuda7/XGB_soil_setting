@@ -117,13 +117,31 @@ def _run(stage, targets, config_path, download, gamma_kind):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--stage', choices=['all', *STAGES], default='all')
+    parser.add_argument('--stage', choices=['all', *STAGES, 'compare'], default='all')
+    parser.add_argument('--comparison-config', default='config/comparison.json')
+    parser.add_argument('--models', choices=('xgboost', 'tabpfn'), nargs='+')
+    parser.add_argument('--comparison-targets', choices=('c', 'N', 'gamma_wet', 'gamma_dry'), nargs='+')
     parser.add_argument('--targets', choices=TARGETS, nargs='+', default=None, help='Override config targets (c, phi, gamma)')
     parser.add_argument('--gamma-kind', choices=('wet', 'dry'), help='Gamma target: wet (湿潤) or dry (乾燥); defaults to config/gamma/prediction.json')
     parser.add_argument('--config', default=str(CONFIG / 'pipeline.jsonc'))
     parser.add_argument('--download', action='store_true', help='Refresh soil-test XML from KuniJiban during collection')
     parser.add_argument('--plan', action='store_true', help='Show stages and missing inputs without executing analysis')
     args = parser.parse_args(argv)
+    if args.stage == 'compare':
+        if args.targets is not None or args.gamma_kind is not None or args.download:
+            parser.error('Use --comparison-targets with --stage compare')
+        if args.plan:
+            comparison = load_jsonc_config(project_path(args.comparison_config))
+            if args.models is not None:
+                comparison['models'] = args.models
+            if args.comparison_targets is not None:
+                comparison['targets'] = {name: comparison['targets'][name] for name in args.comparison_targets}
+            print(json.dumps(comparison, ensure_ascii=False, indent=2))
+            return 0
+        from module.model_comparison import run_comparison
+        return run_comparison(args.comparison_config, args.models, args.comparison_targets)
+    if args.models is not None or args.comparison_targets is not None:
+        parser.error('--models and --comparison-targets require --stage compare')
     try:
         config = load_jsonc_config(project_path(args.config))
         if not isinstance(config, dict):
